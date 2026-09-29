@@ -1,0 +1,85 @@
+group { name: "terminology/miniview";
+   parts {
+      part { name: "miniview_bg"; type: RECT;
+         description { state: "default" 0.0;
+            color_class: "BG";
+         }
+      }
+      part { name: "miniview.img"; type: SWALLOW;
+         description { state: "default" 0.0;
+            rel1 {
+               to: "miniview_bg";
+               relative: 0.0 0.0;
+               offset: 0 0;
+            }
+            rel2 {
+               to: "miniview_bg";
+               relative: 1.0 1.0;
+               offset: -1 -1;
+            }
+         }
+      }
+      part { name: "miniview_screen"; type: RECT;
+         dragable {
+            confine: "miniview.img";
+            x: 0 0 0;
+            y: 1 1 0;
+         }
+         description { state: "default" 0.0;
+            rel.to: "miniview.img";
+            color_class: "/fg/selected/term/miniview/screen";
+            color: 255 255 255 40; // no cc
+            fixed: 1 1;
+         }
+         description { state: "outbounds" 0.0;
+            inherit : "default" 0.0;
+            color_class: "/fg/disabled/term/miniview/screen";
+         }
+      }
+      part { name: "miniview_close";
+         scale: 1;
+         description { state: "default" 0.0;
+            image.normal: "tab_close";
+            rel.to: "miniview_ev";
+            color_class: "/fg/normal/term/miniview/close";
+            min: 15 15;
+            max: 15 15;
+         }
+         description { state: "pressed" 0.0;
+            inherit: "default" 0.0;
+            color_class: "/fg/pressed/term/miniview/close";
+         }
+      }
+      part { name: "miniview_ev"; type: RECT;
+         scale: 1;
+         description { state: "default" 0.0;
+            color: 0 0 0 0; // no cc
+            rel.to: "miniview_bg";
+            min: 25 25;
+            max: 25 25;
+            align: 1.0 0.0;
+         }
+      }
+   };
+   programs {
+      program { signal: "mouse,down,1"; source: "miniview_ev";
+         action: STATE_SET "pressed" 0.0;
+         target: "miniview_close";
+      }
+      program { signal: "mouse,up,1"; source: "miniview_ev";
+         action: STATE_SET "default" 0.0;
+         target: "miniview_close";
+      }
+      program { signal: "mouse,clicked,1"; source: "miniview_ev";
+         action: SIGNAL_EMIT "miniview,close" "terminology";
+      }
+      program { signal: "miniview_screen,inbounds"; source: "miniview";
+         action: STATE_SET "default" 0.0;
+         target: "miniview_screen";
+      }
+      program { signal: "miniview_screen,outbounds"; source: "miniview";
+         action: STATE_SET "outbounds" 0.0;
+         target: "miniview_screen";
+      }
+   };
+};

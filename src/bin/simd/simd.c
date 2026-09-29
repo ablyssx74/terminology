@@ -1,0 +1,673 @@
+/* Kernel selection and the runtime kill-switch. */
+#include "private.h"
+#include "simd.h"
+#include <stdlib.h>
+#include <string.h>
+
+#if defined(TERMINOLOGY_HAVE_NEON)
+static Eina_Bool _use_simd = EINA_TRUE;
+#else
+static Eina_Bool _use_simd = EINA_FALSE;
+#endif
+
+void
+simd_init(void)
+{
+#if defined(TERMINOLOGY_HAVE_NEON)
+   const char *s = getenv("TERMINOLOGY_SIMD_DISABLE");
+
+   /* Any non-empty value other than "0" disables. */
+   if (s && s[0] && strcmp(s, "0") != 0)
+     _use_simd = EINA_FALSE;
+#endif
+}
+
+Eina_Bool
+simd_enabled(void)
+{
+   return _use_simd;
+}
+
+size_t
+simd_scan_plain_ascii(const unsigned char *buf, size_t len)
+{
+#if defined(TERMINOLOGY_HAVE_NEON)
+   if (EINA_LIKELY(_use_simd))
+     return simd_scan_plain_ascii_neon(buf, len);
+#endif
+   return simd_scan_plain_ascii_scalar(buf, len);
+}
+
+size_t
+simd_scan_plain_ascii_u32(const Eina_Unicode *buf, size_t len)
+{
+#if defined(TERMINOLOGY_HAVE_NEON)
+   if (EINA_LIKELY(_use_simd))
+     return simd_scan_plain_ascii_u32_neon(buf, len);
+#endif
+   return simd_scan_plain_ascii_u32_scalar(buf, len);
+}
+
+size_t
+simd_rscan_nonzero(const unsigned char *buf, size_t len)
+{
+#if defined(TERMINOLOGY_HAVE_NEON)
+   if (EINA_LIKELY(_use_simd))
+     return simd_rscan_nonzero_neon(buf, len);
+#endif
+   return simd_rscan_nonzero_scalar(buf, len);
+}
+
+void
+simd_records_or_byte(void *buf, size_t n, size_t rec, size_t off,
+                     unsigned char bit)
+{
+#if defined(TERMINOLOGY_HAVE_NEON)
+   if (EINA_LIKELY(_use_simd))
+     {
+        simd_records_or_byte_neon(buf, n, rec, off, bit);
+        return;
+     }
+#endif
+   simd_records_or_byte_scalar(buf, n, rec, off, bit);
+}
+
+void
+simd_widen_ascii(const unsigned char *buf, size_t len, Eina_Unicode *out)
+{
+#if defined(TERMINOLOGY_HAVE_NEON)
+   if (EINA_LIKELY(_use_simd))
+     {
+        simd_widen_ascii_neon(buf, len, out);
+        return;
+     }
+#endif
+   simd_widen_ascii_scalar(buf, len, out);
+}
+/* Kernel tests, in two halves.
+ *
+ * Everywhere: each kernel is checked against a reference written from the
+ * description in simd.h, through both the scalar form and the dispatcher.
+ * Where there is a vector form: it is checked against the scalar one as well.
+ *
+ * Buffers are guard-padded so a kernel writing outside its range fails even
+ * when the in-range bytes are right, and every length and alignment around the
+ * vector width is walked, since the bugs live in the tail and at the seam
+ * between the vector body and the scalar remainder. */
+#if defined(BINARY_TYTEST)
+#include <assert.h>
+
+#define GUARD 32
+#define GUARD_BYTE 0xA5
+
+/* Deterministic: a parity failure has to be reproducible to be debuggable. */
+static unsigned int _seed = 0x9e3779b9;
+
+static unsigned int
+_rnd(void)
+{
+   _seed ^= _seed << 13;
+   _seed ^= _seed >> 17;
+   _seed ^= _seed << 5;
+   return _seed;
+}
+
+static unsigned char *
+_alloc_guarded(size_t len)
+{
+   unsigned char *base = malloc(len + 2 * GUARD);
+
+   assert(base != NULL);
+   memset(base, GUARD_BYTE, len + 2 * GUARD);
+   return base;
+}
+
+static Eina_Bool
+_guards_intact(const unsigned char *base, size_t len)
+{
+   size_t i;
+
+   for (i = 0; i < GUARD; i++)
+     {
+        if (base[i] != GUARD_BYTE)
+          return EINA_FALSE;
+     }
+   for (i = 0; i < GUARD; i++)
+     {
+        if (base[GUARD + len + i] != GUARD_BYTE)
+          return EINA_FALSE;
+     }
+   return EINA_TRUE;
+}
+
+/* Mostly printable ASCII so runs reach the vector body, salted with the exact
+ * boundary values the kernels test against. */
+static void
+_fill(unsigned char *p, size_t len, int density)
+{
+   size_t i;
+
+   for (i = 0; i < len; i++)
+     {
+        if ((int)(_rnd() % 100) < density)
+          {
+             switch (_rnd() % 6)
+               {
+                case 0: p[i] = 0x00; break;
+                case 1: p[i] = 0x1f; break;
+                case 2: p[i] = 0x7f; break;
+                case 3: p[i] = 0x80; break;
+                case 4: p[i] = 0xff; break;
+                default: p[i] = (unsigned char)(_rnd() % 0x20); break;
+               }
+          }
+        else
+          p[i] = (unsigned char)(0x20 + (_rnd() % 0x5f));
+     }
+}
+
+/* The same, over codepoints. Factored out so both halves of the suite fill
+ * their buffers the same way. */
+static void
+_fill_u32(Eina_Unicode *p, size_t len, int density)
+{
+   size_t i;
+
+   for (i = 0; i < len; i++)
+     {
+        if ((int)(_rnd() % 100) < density)
+          {
+             switch (_rnd() % 7)
+               {
+                case 0: p[i] = 0x00; break;
+                case 1: p[i] = 0x1f; break;
+                case 2: p[i] = 0x7f; break;
+                case 3: p[i] = 0x80; break;
+                case 4: p[i] = 0x4e2d; break;
+                case 5: p[i] = 0x1f600; break;
+                default: p[i] = 0x80000000u | 0x1234; break;
+               }
+          }
+        else
+          p[i] = 0x20 + (_rnd() % 0x5f);
+     }
+}
+
+/* References for the half of the suite that every target runs. Written from
+ * the descriptions in simd.h rather than by mirroring the kernels, so that a
+ * wrong kernel and a wrong reference are unlikely to agree. */
+static size_t
+_ref_scan(const unsigned char *buf, size_t len)
+{
+   size_t i = 0;
+
+   while ((i < len) && (buf[i] >= 0x20) && (buf[i] <= 0x7e))
+     i++;
+   return i;
+}
+
+static size_t
+_ref_scan_u32(const Eina_Unicode *buf, size_t len)
+{
+   size_t i = 0;
+
+   while ((i < len) && (buf[i] >= 0x20) && (buf[i] <= 0x7e))
+     i++;
+   return i;
+}
+
+static size_t
+_ref_rscan(const unsigned char *buf, size_t len)
+{
+   size_t i;
+
+   for (i = len; i > 0; i--)
+     {
+        if (buf[i - 1]) return i;
+     }
+   return 0;
+}
+
+static void
+_ref_records_or(unsigned char *buf, size_t n, size_t rec, size_t off,
+                unsigned char bit)
+{
+   size_t i;
+
+   for (i = 0; i < n; i++)
+     buf[(i * rec) + off] |= bit;
+}
+
+static void
+_ref_widen(const unsigned char *buf, size_t len, Eina_Unicode *out)
+{
+   size_t i;
+
+   for (i = 0; i < len; i++)
+     out[i] = (Eina_Unicode)buf[i];
+}
+
+/* Each kernel through both the scalar form and the dispatcher: on a target
+ * with no vector form those are the same code, but the dispatcher is what
+ * every caller actually reaches, and TERMINOLOGY_SIMD_DISABLE moves it. */
+static void
+_test_ref_scan(void)
+{
+   size_t len, off;
+   int density;
+
+   for (len = 0; len <= 70; len++)
+     {
+        for (density = 0; density <= 100; density += 10)
+          {
+             for (off = 0; off < 16; off++)
+               {
+                  unsigned char *base = _alloc_guarded(off + len);
+                  unsigned char *p = base + GUARD + off;
+                  size_t want;
+
+                  _fill(p, len, density);
+                  want = _ref_scan(p, len);
+                  assert(simd_scan_plain_ascii_scalar(p, len) == want);
+                  assert(simd_scan_plain_ascii(p, len) == want);
+                  assert(_guards_intact(base, off + len));
+                  free(base);
+               }
+          }
+     }
+}
+
+static void
+_test_ref_scan_u32(void)
+{
+   size_t len, off;
+   int density;
+
+   for (len = 0; len <= 40; len++)
+     {
+        for (density = 0; density <= 100; density += 10)
+          {
+             for (off = 0; off < 8; off++)
+               {
+                  unsigned char *base =
+                     _alloc_guarded((off + len) * sizeof(Eina_Unicode));
+                  Eina_Unicode *p = (Eina_Unicode *)(base + GUARD) + off;
+                  size_t want;
+
+                  _fill_u32(p, len, density);
+                  want = _ref_scan_u32(p, len);
+                  assert(simd_scan_plain_ascii_u32_scalar(p, len) == want);
+                  assert(simd_scan_plain_ascii_u32(p, len) == want);
+                  assert(_guards_intact(base,
+                                        (off + len) * sizeof(Eina_Unicode)));
+                  free(base);
+               }
+          }
+     }
+}
+
+static void
+_test_ref_rscan(void)
+{
+   size_t len, off;
+   int density;
+
+   for (len = 0; len <= 70; len++)
+     {
+        /* A dense tail of zeroes is the case the kernel exists for, so bias
+         * towards it rather than sweeping evenly. */
+        for (density = 0; density <= 100; density += 25)
+          {
+             for (off = 0; off < 16; off++)
+               {
+                  unsigned char *base = _alloc_guarded(off + len);
+                  unsigned char *p = base + GUARD + off;
+                  size_t want, i;
+
+                  for (i = 0; i < len; i++)
+                    p[i] = ((int)(_rnd() % 100) < density)
+                           ? 0 : (unsigned char)(_rnd() | 1);
+                  want = _ref_rscan(p, len);
+                  assert(simd_rscan_nonzero_scalar(p, len) == want);
+                  assert(simd_rscan_nonzero(p, len) == want);
+                  assert(_guards_intact(base, off + len));
+                  free(base);
+               }
+          }
+     }
+}
+
+static void
+_test_ref_records_or(void)
+{
+   size_t n, off, rec, i;
+
+   /* Both the vectorised 12-byte stride and one that must fall back. */
+   for (rec = 11; rec <= 12; rec++)
+     {
+        for (n = 0; n <= 40; n++)
+          {
+             for (off = 0; off < rec; off++)
+               {
+                  unsigned char *a = _alloc_guarded(n * rec);
+                  unsigned char *b = _alloc_guarded(n * rec);
+                  unsigned char *c = _alloc_guarded(n * rec);
+
+                  for (i = 0; i < n * rec; i++)
+                    {
+                       unsigned char v = (unsigned char)(_rnd() & 0xff);
+
+                       a[GUARD + i] = v;
+                       b[GUARD + i] = v;
+                       c[GUARD + i] = v;
+                    }
+
+                  _ref_records_or(a + GUARD, n, rec, off, 0x40);
+                  simd_records_or_byte_scalar(b + GUARD, n, rec, off, 0x40);
+                  simd_records_or_byte(c + GUARD, n, rec, off, 0x40);
+
+                  assert(memcmp(a + GUARD, b + GUARD, n * rec) == 0);
+                  assert(memcmp(a + GUARD, c + GUARD, n * rec) == 0);
+                  assert(_guards_intact(a, n * rec));
+                  assert(_guards_intact(b, n * rec));
+                  assert(_guards_intact(c, n * rec));
+                  free(a);
+                  free(b);
+                  free(c);
+               }
+          }
+     }
+}
+
+static void
+_test_ref_widen(void)
+{
+   size_t len, off, i;
+
+   for (len = 0; len <= 70; len++)
+     {
+        for (off = 0; off < 16; off++)
+          {
+             unsigned char *base = _alloc_guarded(off + len);
+             unsigned char *p = base + GUARD + off;
+             Eina_Unicode *want = calloc(len + 8, sizeof(Eina_Unicode));
+             Eina_Unicode *o1 = calloc(len + 8, sizeof(Eina_Unicode));
+             Eina_Unicode *o2 = calloc(len + 8, sizeof(Eina_Unicode));
+
+             assert(want != NULL);
+             assert(o1 != NULL);
+             assert(o2 != NULL);
+             _fill(p, len, 0);
+             for (i = 0; i < 8; i++)
+               {
+                  want[len + i] = 0xdeadbeef;
+                  o1[len + i] = 0xdeadbeef;
+                  o2[len + i] = 0xdeadbeef;
+               }
+
+             _ref_widen(p, len, want);
+             simd_widen_ascii_scalar(p, len, o1);
+             simd_widen_ascii(p, len, o2);
+
+             assert(memcmp(want, o1, (len + 8) * sizeof(Eina_Unicode)) == 0);
+             assert(memcmp(want, o2, (len + 8) * sizeof(Eina_Unicode)) == 0);
+             assert(_guards_intact(base, off + len));
+
+             free(base);
+             free(want);
+             free(o1);
+             free(o2);
+          }
+     }
+}
+
+/* From here on, the vector kernels against the scalar ones. */
+#if defined(TERMINOLOGY_HAVE_NEON)
+
+static void
+_test_scan(void)
+{
+   size_t len, off;
+   int density;
+
+   for (len = 0; len <= 70; len++)
+     {
+        for (density = 0; density <= 100; density += 10)
+          {
+             for (off = 0; off < 16; off++)
+               {
+                  unsigned char *base = _alloc_guarded(off + len);
+                  unsigned char *p = base + GUARD + off;
+
+                  _fill(p, len, density);
+                  assert(simd_scan_plain_ascii_scalar(p, len) ==
+                         simd_scan_plain_ascii_neon(p, len));
+                  assert(_guards_intact(base, off + len));
+                  free(base);
+               }
+          }
+     }
+}
+
+static void
+_test_scan_u32(void)
+{
+   size_t len, off, i;
+   int density;
+
+   for (len = 0; len <= 40; len++)
+     {
+        for (density = 0; density <= 100; density += 10)
+          {
+             for (off = 0; off < 8; off++)
+               {
+                  /* Guarded in bytes, so an overread past the payload lands in
+                   * guard bytes rather than in slack. */
+                  unsigned char *base =
+                     _alloc_guarded((off + len) * sizeof(Eina_Unicode));
+                  Eina_Unicode *p = (Eina_Unicode *)(base + GUARD) + off;
+
+                  _fill_u32(p, len, density);
+                  assert(simd_scan_plain_ascii_u32_scalar(p, len) ==
+                         simd_scan_plain_ascii_u32_neon(p, len));
+                  assert(_guards_intact(base,
+                                        (off + len) * sizeof(Eina_Unicode)));
+                  free(base);
+               }
+          }
+     }
+}
+
+static void
+_test_rscan(void)
+{
+   size_t len, off, pos;
+   int density;
+
+   for (len = 0; len <= 70; len++)
+     {
+        for (density = 0; density <= 100; density += 25)
+          {
+             for (off = 0; off < 16; off++)
+               {
+                  unsigned char *base = _alloc_guarded(off + len);
+                  unsigned char *p = base + GUARD + off;
+
+                  memset(p, 0, len);
+                  for (pos = 0; pos < len; pos++)
+                    {
+                       if ((int)(_rnd() % 100) < density)
+                         p[pos] = (unsigned char)(1 + (_rnd() % 255));
+                    }
+
+                  assert(simd_rscan_nonzero_scalar(p, len) ==
+                         simd_rscan_nonzero_neon(p, len));
+                  assert(_guards_intact(base, off + len));
+                  free(base);
+               }
+          }
+     }
+
+   /* One non-zero byte walked across every position: pins down the lane
+    * arithmetic rather than trusting the random fill to have covered it. */
+   for (len = 1; len <= 40; len++)
+     {
+        for (pos = 0; pos < len; pos++)
+          {
+             unsigned char buf[48];
+
+             memset(buf, 0, sizeof(buf));
+             buf[pos] = 0x01;
+             assert(simd_rscan_nonzero_scalar(buf, len) == pos + 1);
+             assert(simd_rscan_nonzero_neon(buf, len) == pos + 1);
+          }
+     }
+}
+
+static void
+_test_records_or(void)
+{
+   size_t n, off, rec, i;
+
+   /* Both the vectorised 12-byte stride and one that must fall back. */
+   for (rec = 11; rec <= 12; rec++)
+     {
+        for (n = 0; n <= 40; n++)
+          {
+             for (off = 0; off < rec; off++)
+               {
+                  unsigned char *a = _alloc_guarded(n * rec);
+                  unsigned char *b = _alloc_guarded(n * rec);
+
+                  for (i = 0; i < n * rec; i++)
+                    {
+                       unsigned char v = (unsigned char)(_rnd() & 0xff);
+
+                       a[GUARD + i] = v;
+                       b[GUARD + i] = v;
+                    }
+
+                  simd_records_or_byte_scalar(a + GUARD, n, rec, off, 0x40);
+                  simd_records_or_byte_neon(b + GUARD, n, rec, off, 0x40);
+
+                  assert(memcmp(a + GUARD, b + GUARD, n * rec) == 0);
+                  assert(_guards_intact(a, n * rec));
+                  assert(_guards_intact(b, n * rec));
+                  free(a);
+                  free(b);
+               }
+          }
+     }
+}
+
+static void
+_test_widen(void)
+{
+   size_t len, off, i;
+
+   for (len = 0; len <= 70; len++)
+     {
+        for (off = 0; off < 16; off++)
+          {
+             unsigned char *base = _alloc_guarded(off + len);
+             unsigned char *p = base + GUARD + off;
+             Eina_Unicode *o1 = calloc(len + 8, sizeof(Eina_Unicode));
+             Eina_Unicode *o2 = calloc(len + 8, sizeof(Eina_Unicode));
+
+             assert(o1 != NULL);
+             assert(o2 != NULL);
+             _fill(p, len, 0);
+             for (i = 0; i < 8; i++)
+               {
+                  o1[len + i] = 0xdeadbeef;
+                  o2[len + i] = 0xdeadbeef;
+               }
+
+             simd_widen_ascii_scalar(p, len, o1);
+             simd_widen_ascii_neon(p, len, o2);
+
+             assert(memcmp(o1, o2, (len + 8) * sizeof(Eina_Unicode)) == 0);
+             for (i = 0; i < 8; i++)
+               assert(o2[len + i] == 0xdeadbeef);
+             assert(_guards_intact(base, off + len));
+
+             free(base);
+             free(o1);
+             free(o2);
+          }
+     }
+}
+
+/* Every byte value, at every position, exhaustively. */
+static void
+_test_every_byte(void)
+{
+   unsigned int v;
+   size_t len, pos;
+
+   for (v = 0; v < 256; v++)
+     {
+        for (len = 1; len <= 40; len++)
+          {
+             for (pos = 0; pos < len; pos++)
+               {
+                  unsigned char buf[64];
+
+                  memset(buf, 'x', sizeof(buf));
+                  buf[pos] = (unsigned char)v;
+                  assert(simd_scan_plain_ascii_scalar(buf, len) ==
+                         simd_scan_plain_ascii_neon(buf, len));
+               }
+          }
+     }
+}
+
+static void
+_test_every_u32_boundary(void)
+{
+   static const Eina_Unicode vals[] = {
+        0x00, 0x01, 0x1f, 0x20, 0x21, 0x7d, 0x7e, 0x7f, 0x80, 0xa0,
+        0x200b, 0x300, 0x4e2d, 0xfe00, 0x1f600, 0x80000000u
+   };
+   size_t v, len, pos, i;
+
+   for (v = 0; v < sizeof(vals) / sizeof(vals[0]); v++)
+     {
+        for (len = 1; len <= 20; len++)
+          {
+             for (pos = 0; pos < len; pos++)
+               {
+                  Eina_Unicode buf[24];
+
+                  for (i = 0; i < len; i++) buf[i] = 'x';
+                  buf[pos] = vals[v];
+                  assert(simd_scan_plain_ascii_u32_scalar(buf, len) ==
+                         simd_scan_plain_ascii_u32_neon(buf, len));
+               }
+          }
+     }
+}
+
+#endif
+
+int
+tytest_simd_parity(void)
+{
+   _test_ref_scan();
+   _test_ref_scan_u32();
+   _test_ref_rscan();
+   _test_ref_records_or();
+   _test_ref_widen();
+#if defined(TERMINOLOGY_HAVE_NEON)
+   _test_scan();
+   _test_scan_u32();
+   _test_rscan();
+   _test_records_or();
+   _test_widen();
+   _test_every_byte();
+   _test_every_u32_boundary();
+#endif
+   return 0;
+}
+
+#endif

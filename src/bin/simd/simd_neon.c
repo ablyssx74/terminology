@@ -1,0 +1,166 @@
+/* NEON implementations of the intake kernels, using arm_neon.h intrinsics as
+ * EFL's own aarch64 code does. */
+#include "private.h"
+#include "simd.h"
+#include <string.h>
+
+#if defined(TERMINOLOGY_HAVE_NEON)
+
+#include <arm_neon.h>
+
+size_t
+simd_scan_plain_ascii_neon(const unsigned char *buf, size_t len)
+{
+   const uint8x16_t lo    = vdupq_n_u8(0x20);
+   const uint8x16_t hi    = vdupq_n_u8(0x7f);
+   size_t i = 0;
+
+   for (; i + 16 <= len; i += 16)
+     {
+        uint8x16_t v = vld1q_u8(buf + i);
+        uint8x16_t bad;
+        uint64_t m;
+
+        /* c < 0x20 || c >= 0x7f. The second test folds DEL and every
+         * high-bit-set byte into one comparison, which is why the range is
+         * expressed as ">= 0x7f" rather than "== 0x7f || >= 0x80". */
+        bad = vorrq_u8(vcltq_u8(v, lo), vcgeq_u8(v, hi));
+
+        /* Collapse the 16 lanes into 16 nibbles of one 64-bit word, so the
+         * first offending byte is a trailing-zero count over four. aarch64 has
+         * no PMOVMSKB equivalent. */
+        m = vget_lane_u64(vreinterpret_u64_u8(
+                             vshrn_n_u16(vreinterpretq_u16_u8(bad), 4)), 0);
+        if (m) return i + (size_t)(__builtin_ctzll(m) >> 2);
+     }
+
+   /* Tail: fewer than 16 bytes left. */
+   for (; i < len; i++)
+     {
+        unsigned char c = buf[i];
+
+        if ((c < 0x20) || (c >= 0x7f)) return i;
+     }
+   return len;
+}
+
+size_t
+simd_scan_plain_ascii_u32_neon(const Eina_Unicode *buf, size_t len)
+{
+   /* One unsigned compare instead of two: g - 0x20 wraps for anything below
+    * 0x20, pushing it above the 0x5e span that 0x20..0x7e occupies. */
+   const uint32x4_t bias = vdupq_n_u32(0x20);
+   const uint32x4_t span = vdupq_n_u32(0x7e - 0x20);
+   size_t i = 0;
+
+   for (; i + 4 <= len; i += 4)
+     {
+        uint32x4_t v = vld1q_u32((const uint32_t *)(buf + i));
+        uint32x4_t bad = vcgtq_u32(vsubq_u32(v, bias), span);
+        uint64_t m;
+
+        /* Narrow the four 32-bit lanes to four 16-bit ones, so the first
+         * offending lane is a trailing-zero count divided by sixteen. */
+        m = vget_lane_u64(vreinterpret_u64_u16(vmovn_u32(bad)), 0);
+        if (m) return i + (size_t)(__builtin_ctzll(m) >> 4);
+     }
+
+   for (; i < len; i++)
+     {
+        Eina_Unicode g = buf[i];
+
+        if ((g < 0x20) || (g >= 0x7f)) return i;
+     }
+   return len;
+}
+
+size_t
+simd_rscan_nonzero_neon(const unsigned char *buf, size_t len)
+{
+   size_t i = len;
+
+   while (i >= 16)
+     {
+        uint8x16_t v = vld1q_u8(buf + i - 16);
+        uint64_t m;
+
+        /* vtstq_u8(v, v) is 0xff in every lane whose byte is non-zero. */
+        m = vget_lane_u64(vreinterpret_u64_u8(
+                             vshrn_n_u16(vreinterpretq_u16_u8(vtstq_u8(v, v)),
+                                         4)), 0);
+        if (m)
+          {
+             /* Highest set nibble is the last non-zero byte of this block. */
+             size_t lane = (size_t)(63 - __builtin_clzll(m)) >> 2;
+
+             return i - 16 + lane + 1;
+          }
+        i -= 16;
+     }
+
+   while (i > 0)
+     {
+        if (buf[i - 1]) return i;
+        i--;
+     }
+   return 0;
+}
+
+void
+simd_records_or_byte_neon(void *buf, size_t n, size_t rec, size_t off,
+                          unsigned char bit)
+{
+   unsigned char *p = (unsigned char *)buf;
+   size_t i = 0;
+
+   /* A 12-byte stride lines up with the vector every four records, so the mask
+    * repeats every 48 bytes. Other strides use the scalar form. */
+   if ((rec == 12) && (off < rec))
+     {
+        unsigned char pat[48];
+        uint8x16_t m0, m1, m2;
+
+        memset(pat, 0, sizeof(pat));
+        pat[off] = bit;
+        pat[rec + off] = bit;
+        pat[2 * rec + off] = bit;
+        pat[3 * rec + off] = bit;
+        m0 = vld1q_u8(pat);
+        m1 = vld1q_u8(pat + 16);
+        m2 = vld1q_u8(pat + 32);
+
+        for (; i + 4 <= n; i += 4, p += 48)
+          {
+             vst1q_u8(p,      vorrq_u8(vld1q_u8(p),      m0));
+             vst1q_u8(p + 16, vorrq_u8(vld1q_u8(p + 16), m1));
+             vst1q_u8(p + 32, vorrq_u8(vld1q_u8(p + 32), m2));
+          }
+     }
+
+   for (; i < n; i++, p += rec)
+     p[off] |= bit;
+}
+
+void
+simd_widen_ascii_neon(const unsigned char *buf, size_t len, Eina_Unicode *out)
+{
+   size_t i = 0;
+
+   for (; i + 16 <= len; i += 16)
+     {
+        uint8x16_t v = vld1q_u8(buf + i);
+        /* Zero-extend 8 -> 16 -> 32 bits in two steps per half. */
+        uint16x8_t w0 = vmovl_u8(vget_low_u8(v));
+        uint16x8_t w1 = vmovl_u8(vget_high_u8(v));
+
+        vst1q_u32((uint32_t *)(out + i +  0), vmovl_u16(vget_low_u16(w0)));
+        vst1q_u32((uint32_t *)(out + i +  4), vmovl_u16(vget_high_u16(w0)));
+        vst1q_u32((uint32_t *)(out + i +  8), vmovl_u16(vget_low_u16(w1)));
+        vst1q_u32((uint32_t *)(out + i + 12), vmovl_u16(vget_high_u16(w1)));
+     }
+
+   for (; i < len; i++)
+     out[i] = buf[i];
+}
+
+#endif

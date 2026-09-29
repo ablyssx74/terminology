@@ -1,0 +1,507 @@
+#ifndef TERMINOLOGY_TERMPTY_H_
+#define TERMINOLOGY_TERMPTY_H_ 1
+
+#include "config.h"
+#include "media.h"
+#include "sb.h"
+
+typedef struct tag_Termcell      Termcell;
+typedef struct tag_Termatt       Termatt;
+typedef struct tag_Termsave      Termsave;
+typedef struct tag_Termsavecomp  Termsavecomp;
+typedef struct tag_Termblock     Termblock;
+typedef struct tag_Termexp       Termexp;
+typedef struct tag_Termpty       Termpty;
+typedef struct tag_Termlink      Term_Link;
+typedef struct tag_TitleIconElem TitleIconElem;
+
+#define COL_DEF        0
+#define COL_BLACK      1
+#define COL_RED        2
+#define COL_GREEN      3
+#define COL_YELLOW     4
+#define COL_BLUE       5
+#define COL_MAGENTA    6
+#define COL_CYAN       7
+#define COL_WHITE      8
+#define COL_INVIS      9
+
+#define COL_INVERSE   10
+#define COL_INVERSEBG 11
+
+#define MOUSE_OFF              0
+#define MOUSE_X10              1 // Press only
+#define MOUSE_NORMAL           2 // Press+release only
+#define MOUSE_NORMAL_BTN_MOVE  3 // Press+release+motion while pressed
+#define MOUSE_NORMAL_ALL_MOVE  4 // Press+release+all motion
+
+#define MOUSE_EXT_NONE         0
+#define MOUSE_EXT_UTF8         1
+#define MOUSE_EXT_SGR          2
+#define MOUSE_EXT_URXVT        3
+
+// Only for testing purpose
+//#define SUPPORT_80_132_COLUMNS 1
+
+#define MOVIE_STATE_PLAY   0
+#define MOVIE_STATE_PAUSE  1
+#define MOVIE_STATE_STOP   2
+
+#define HL_LINKS_MAX  (1 << 16)
+
+struct tag_Termlink
+{
+    const char *key;
+    const char *url;
+    unsigned int refcount;
+};
+
+
+
+
+struct tag_Termatt
+{
+   uint8_t fg, bg;
+   unsigned short bold : 1;
+   unsigned short faint : 1;
+   unsigned short italic : 1;
+   unsigned short dblwidth : 1;
+   unsigned short underline : 1;
+   unsigned short blink : 1; // don't intend to support this currently
+   unsigned short blink2 : 1; // don't intend to support this currently
+   unsigned short inverse : 1;
+   unsigned short invisible : 1;
+   unsigned short strike : 1;
+   unsigned short fg256 : 1;
+   unsigned short bg256 : 1;
+   unsigned short fgintense : 1;
+   unsigned short bgintense : 1;
+   // below used for working out text from selections
+   unsigned short autowrapped : 1;
+   unsigned short newline : 1;
+   unsigned short fraktur : 1;
+   unsigned short framed : 1;
+   unsigned short encircled : 1;
+   unsigned short overlined : 1; // TODO: support it
+   unsigned short tab_inserted : 1;
+   unsigned short tab_last : 1;
+#if defined(SUPPORT_80_132_COLUMNS)
+   unsigned short is_80_132_mode_allowed : 1;
+   unsigned short bit_padding :  9;
+#else
+   unsigned short bit_padding : 10;
+#endif
+   uint16_t       link_id;
+};
+
+typedef struct tag_Backlog_Beacon{
+    int screen_y;
+    int backlog_y;
+} Backlog_Beacon;
+
+typedef enum exmod {
+     XMOD_KEYBOARD = 0,
+     XMOD_CURSOR = 1,
+     XMOD_FUNCTIONS= 2,
+     XMOD_KEYPAD = 3,
+     XMOD_OTHER = 4,
+     XMOD_STRING = 5,
+     XMOD_MODIFIERS = 6,
+     XMOD_SPECIAL = 7,
+     XMOD_LAST = 8,
+} XMod;
+
+typedef struct tag_Term_State {
+    Termatt       att;
+    unsigned char charset;
+    unsigned char charsetch;
+    unsigned char chset[4];
+    int           top_margin, bottom_margin;
+    int           left_margin, right_margin;
+    int           had_cr_x, had_cr_y;
+    unsigned int  lr_margins : 1;
+    unsigned int  restrict_cursor : 1;
+    unsigned int  multibyte : 1;
+    unsigned int  alt_kp : 1;
+    unsigned int  insert : 1;
+    unsigned int  appcursor : 1;
+    unsigned int  wrap : 1;
+    unsigned int  crlf : 1;
+    unsigned int  send_bs : 1;
+    unsigned int  kbd_lock : 1;
+    unsigned int  reverse : 1;
+    unsigned int  no_autorepeat : 1;
+    unsigned int  cjk_ambiguous_wide : 1;
+    unsigned int  hide_cursor : 1;
+    unsigned int  combining_strike : 1;
+    unsigned int  sace_rectangular : 1;
+    unsigned int  esc_keycode : 1;
+    unsigned int  alternate_esc : 1;
+    int xmod[XMOD_LAST];
+} Term_State;
+
+typedef struct tag_Term_Cursor {
+    int cx;
+    int cy;
+    unsigned char wrapnext : 1;
+} Term_Cursor;
+
+struct tag_Termpty
+{
+   Evas_Object *obj;
+   Config *config;
+   Ecore_Event_Handler *hand_exe_exit;
+   Ecore_Fd_Handler *hand_fd;
+   struct {
+      struct {
+         void (*func) (void *data);
+         void *data;
+      } change, set_title, set_icon, cancel_sel, exited, bell, command;
+   } cb;
+   struct {
+      Ecore_Timer *watchdog;
+      Termcell   **shadow_rows;     /* size shadow_h, each entry NULL or malloc'd row copy */
+      int          shadow_h;
+      int          shadow_w;
+      int          shadow_cur_x, shadow_cur_y;
+      Eina_Bool    shadow_cur_hidden : 1;
+      Eina_Bool    active : 1;
+   } sync_output;
+   struct {
+      const char *icon;
+      /* dynamic title set by xterm, keep it in case user don't want a
+       * title any more by setting a empty title
+       */
+      const char *title;
+      /* set by user */
+      const char *user_title;
+      /* working directory reported by the shell through OSC 7 */
+      const char *cwd;
+   } prop;
+   const char *cur_cmd;
+   Termcell *screen, *screen2;
+   unsigned int *tabs;
+   int circular_offset;
+   int circular_offset2;
+   Eina_Unicode *buf;
+   size_t buflen;
+   Eina_Unicode last_char;
+   Eina_Bool buf_have_zero;
+   unsigned char oldbuf[4];
+   Termsave *back;
+   size_t backsize, backpos;
+   /* this beacon in the backlog tells about the top line in screen
+    * coordinates that maps to a line in the backlog */
+   Backlog_Beacon backlog_beacon;
+   int w, h;
+   int fd, slavefd;
+   struct ty_sb write_buffer;
+   struct {
+      int curid;
+      Eina_Hash *blocks;
+      Eina_Hash *chid_map;
+      Eina_List *active;
+      Eina_List *expecting;
+      unsigned char on : 1;
+   } block;
+   struct {
+      /* start is always the start of the selection
+       * so end.y can be < start.y */
+      struct {
+         int x, y;
+      } start, end, orig;
+      Eina_Unicode *codepoints;
+      time_t last_click;
+      unsigned char is_box    : 1;
+      unsigned char is_active : 1; // there is a visible selection
+      unsigned char makesel   : 1; // selection is being worked on
+      unsigned char by_word   : 1;
+      unsigned char by_line   : 1;
+      unsigned char is_top_to_bottom : 1;
+   } selection;
+   Term_State termstate;
+   Term_Cursor cursor_state;
+   Term_Cursor cursor_save[2];
+   /* Column/row of the cell written by the last text codepoint appended by
+    * termpty_text_append(), or -1 when there is none. Used to validate
+    * VS16 (U+FE0F) retro-widen: a cursor move that lands anywhere else
+    * fails the match automatically, so escape sequences that reposition
+    * the cursor (DECSTBM, DECSLRM, DECOM, HT, DECRC, ...) need no explicit
+    * invalidation. Kept on Termpty rather than Term_Cursor so DECRC's
+    * wholesale cursor_state assignment does not resurrect a stale value.
+    * Reset to -1 in termpty_soft_reset_state() (also reached via
+    * termpty_reset_state()) and on resize. */
+   int vs16_base_x, vs16_base_y;
+   int exit_code;
+   pid_t pid;
+   unsigned int altbuf     : 1;
+   unsigned int mouse_mode : 3;
+   unsigned int mouse_ext  : 2;
+   unsigned int bracketed_paste : 1;
+   unsigned int decoding_error : 1;
+   unsigned int focus_reporting : 1;
+   struct {
+       Term_Link *links;
+       uint8_t *bitmap;
+       uint32_t size;
+   } hl;
+   TitleIconElem *title_icon_stack;
+};
+
+struct tag_Termcell
+{
+   Eina_Unicode   codepoint;
+   Termatt        att;
+};
+
+struct tag_Termsave
+{
+   unsigned int   gen  : 8;
+   unsigned int   comp : 1;
+   unsigned int   z    : 1;
+   unsigned int   w    : 22;
+   /* Cells the allocation holds, which is >= 'w': a row keeps its block when
+    * rewritten. Free on LP64, where the pointer below already forced padding. */
+   unsigned int   cap;
+   /* TODO: union ? */
+   Termcell       *cells;
+};
+
+/* TODO: RESIZE rewrite Termsavecomp */
+struct tag_Termsavecomp
+{
+   unsigned int   gen  : 8;
+   unsigned int   comp : 1;
+   unsigned int   z    : 1;
+   unsigned int   w    : 22; // compressed size in bytes
+   unsigned int   wout; // output width in Termcells
+};
+
+struct tag_Termblock
+{
+   Termpty     *pty;
+   const char  *path, *link, *chid;
+   Evas_Object *obj;
+   Eina_List   *cmds;
+   int          id;
+   Media_Type   type;
+   int          refs;
+   short        w, h;
+   short        x, y;
+   unsigned char scale_stretch : 1;
+   unsigned char scale_center : 1;
+   unsigned char scale_fill : 1;
+   unsigned char thumb : 1;
+   unsigned char edje : 1;
+
+   unsigned char no_listen : 1;
+
+   unsigned char active : 1;
+   unsigned char was_active : 1;
+   unsigned char was_active_before : 1;
+
+   unsigned char mov_state : 2;  // movie state marker
+};
+
+struct tag_Termexp
+{
+   Eina_Unicode ch;
+   int left, id;
+   int x, y, w, h;
+};
+
+
+void       termpty_init(void);
+void       termpty_shutdown(void);
+
+Termpty   *termpty_new(const char *cmd, Eina_Bool login_shell, const char *cd,
+                       int w, int h, Config *config, const char *title,
+                       Ecore_Window window_id);
+void       termpty_free(Termpty *ty);
+void       termpty_sync_output_reset(Termpty *ty);
+/* private — called from termptyesc.c _sync_output_end only */
+void       termpty_sync_output_snapshot_free(Termpty *ty);
+void       termpty_config_update(Termpty *ty, Config *config);
+
+const Termcell *termpty_cellrow_get(Termpty *ty, int y, ssize_t *wret);
+Termcell       *termpty_cellrow_get_writeable(Termpty *ty, int y, ssize_t *wret);
+Termcell       *termpty_cell_get(Termpty *ty, int y_requested, int x_requested);
+ssize_t         termpty_row_length(Termpty *ty, int y);
+
+#define TERMPTY_WRITE_STR(S_) \
+   termpty_write(ty, S_, strlen(S_))
+void       termpty_write(Termpty *ty, const char *input, int len);
+
+void       termpty_resize(Termpty *ty, int new_w, int new_h);
+void       termpty_resize_tabs(Termpty *ty, int old_w, int new_w);
+void       termpty_backscroll_adjust(Termpty *ty, int *scroll);
+
+pid_t      termpty_pid_get(const Termpty *ty);
+void       termpty_block_free(Termblock *tb);
+Termblock *termpty_block_new(Termpty *ty, int w, int h, const char *path, const char *link);
+void       termpty_block_insert(Termpty *ty, int ch, Termblock *blk);
+static inline int
+termpty_block_id_get(const Termcell *cell, int *x, int *y)
+{
+   int id;
+
+   if (!(cell->codepoint & 0x80000000)) return -1;
+   id = (cell->codepoint >> 18) & 0x1fff;
+   *x = (cell->codepoint >> 9) & 0x1ff;
+   *y = cell->codepoint & 0x1ff;
+   return id;
+}
+Termblock *termpty_block_get(const Termpty *ty, int id);
+void       termpty_block_chid_update(Termpty *ty, Termblock *blk);
+Termblock *termpty_block_chid_get(const Termpty *ty, const char *chid);
+
+void       termpty_cell_codepoint_att_fill(Termpty *ty, Eina_Unicode codepoint, Termatt att, Termcell *dst, int n);
+void       termpty_cells_set_content(Termpty *ty, Termcell *cells,
+                          Eina_Unicode codepoint, int count);
+void       termpty_screen_swap(Termpty *ty);
+
+ssize_t termpty_line_length(const Termcell *cells, ssize_t nb_cells);
+
+void termpty_handle_buf(Termpty *ty, const Eina_Unicode *codepoints, int len);
+void termpty_handle_block_codepoint_overwrite_heavy(Termpty *ty, int oldc, int newc);
+
+Term_Link * term_link_new(Termpty *ty);
+void term_link_free(Termpty *ty, Term_Link *link);
+
+int
+termpty_color_class_get(Termpty *ty, const char *key,
+                        int *r, int *g, int *b, int *a);
+void
+termpty_focus_report(Termpty *ty, Eina_Bool focus);
+
+extern int _termpty_log_dom;
+
+/* Debug logging for the parser. EINA_LOG_DOM_DBG() evaluates its arguments
+ * before the level is checked, which is too expensive for the hot paths, so
+ * check the level first. */
+#if defined(EINA_LOG_LEVEL_MAXIMUM)
+/* Compiled out already; a level check would only add a call. */
+# define TERMPTY_DBG(...) EINA_LOG_DOM_DBG(_termpty_log_dom, __VA_ARGS__)
+#else
+# define TERMPTY_DBG(...)                                                     \
+   do                                                                         \
+     {                                                                        \
+        if (EINA_UNLIKELY(eina_log_domain_level_check(_termpty_log_dom,       \
+                                                      EINA_LOG_LEVEL_DBG)))   \
+          EINA_LOG_DOM_DBG(_termpty_log_dom, __VA_ARGS__);                    \
+     }                                                                        \
+   while (0)
+#endif
+
+#define TERMPTY_SCREEN(Tpty, X, Y) \
+  Tpty->screen[X + (((Y + Tpty->circular_offset) % Tpty->h) * Tpty->w)]
+
+#define TERMPTY_RESTRICT_FIELD(Field, Min, Max) \
+   do {                                         \
+   if (Field >= Max)                            \
+     Field = Max - 1;                           \
+   else if (Field < Min)                        \
+     Field = Min;                               \
+   } while (0)
+
+/* Try to trick the compiler into inlining the first test */
+#define HANDLE_BLOCK_CODEPOINT_OVERWRITE(Tpty, OLDC, NEWC)                   \
+do {                                                                         \
+   if (EINA_UNLIKELY((OLDC | NEWC) & 0x80000000))                            \
+       termpty_handle_block_codepoint_overwrite_heavy(Tpty, OLDC, NEWC);     \
+} while (0)
+
+/* No cell can carry a link id or a bit-31 block codepoint unless one was ever
+ * created, so the bookkeeping loop is skippable. hl.size and block.blocks both
+ * only ever go from unset to set. */
+#define TERMPTY_CELL_COPY(Tpty, Tsrc, Tdst, N)                               \
+do {                                                                         \
+   if (EINA_UNLIKELY(((Tpty)->hl.size != 0) || ((Tpty)->block.blocks)))      \
+     {                                                                       \
+        int __i;                                                             \
+                                                                             \
+        for (__i = 0; __i < N; __i++)                                        \
+          {                                                                  \
+             HANDLE_BLOCK_CODEPOINT_OVERWRITE(Tpty,                          \
+                                              (Tdst)[__i].codepoint,         \
+                                              (Tsrc)[__i].codepoint);        \
+             if (EINA_UNLIKELY((Tdst)[__i].att.link_id))                     \
+               term_link_refcount_dec(Tpty, (Tdst)[__i].att.link_id, 1);     \
+             if (EINA_UNLIKELY((Tsrc)[__i].att.link_id))                     \
+               term_link_refcount_inc(Tpty, (Tsrc)[__i].att.link_id, 1);     \
+          }                                                                  \
+     }                                                                       \
+   memcpy(Tdst, Tsrc, N * sizeof(Termcell));                                 \
+} while (0)
+
+
+static inline void
+term_link_refcount_inc(Termpty *ty, uint16_t link_id, uint16_t count)
+{
+   Term_Link *link;
+
+   link = &ty->hl.links[link_id];
+   link->refcount += count;
+}
+
+static inline void
+term_link_refcount_dec(Termpty *ty, uint16_t link_id, uint16_t count)
+{
+   Term_Link *link;
+
+   link = &ty->hl.links[link_id];
+   link->refcount -= count;
+   if (EINA_UNLIKELY(link->refcount == 0))
+     term_link_free(ty, link);
+}
+
+static inline Eina_Bool
+term_link_eq(Termpty *ty, Term_Link *hl, uint16_t link_id)
+{
+    Term_Link *hl2;
+    uint16_t hl_id;
+
+    if (link_id == 0)
+        return EINA_FALSE;
+
+    hl_id = hl - ty->hl.links;
+    if (hl_id == link_id)
+        return EINA_TRUE;
+    hl2 = &ty->hl.links[link_id];
+    if (!hl->key || !hl2->key ||
+        strcmp(hl->key, hl2->key) != 0)
+        return EINA_FALSE;
+    return (strcmp(hl->url, hl2->url) == 0);
+}
+
+static inline void
+termpty_cell_fill(Termpty *ty, const Termcell *src, Termcell *dst, int n)
+{
+   int i;
+
+   if (src)
+     {
+        for (i = 0; i < n; i++)
+          {
+             HANDLE_BLOCK_CODEPOINT_OVERWRITE(ty, dst[i].codepoint, src[0].codepoint);
+             if (EINA_UNLIKELY(dst[i].att.link_id))
+               term_link_refcount_dec(ty, dst[i].att.link_id, 1);
+
+             dst[i] = src[0];
+          }
+        if (src[0].att.link_id)
+          term_link_refcount_inc(ty, src[0].att.link_id, n);
+     }
+   else
+     {
+        for (i = 0; i < n; i++)
+          {
+             HANDLE_BLOCK_CODEPOINT_OVERWRITE(ty, dst[i].codepoint, 0);
+             if (EINA_UNLIKELY(dst[i].att.link_id))
+               term_link_refcount_dec(ty, dst[i].att.link_id, 1);
+
+             memset(&(dst[i]), 0, sizeof(*dst));
+          }
+     }
+}
+#endif

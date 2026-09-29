@@ -1,0 +1,170 @@
+group { name: "terminology/tab_drag_thumb";
+   images.image: "pm_shadow.png" COMP;
+   parts {
+        ////////////////////////////////////////////////////////////////////
+        // base background and selection image
+      part { name: "clip"; type: RECT;
+         description { state: "default" 0.0;
+            rel.to: "terminology.content";
+            color: 255 255 255 255;
+         }
+      }
+      part { name: "shadow";
+         mouse_events: 0;
+         description { state: "default" 0.0;
+            fixed: 1 1;
+            rel.to: "terminology.content";
+            rel1.offset: -32 -32;
+            rel2.offset: 31 31;
+            image.normal: "pm_shadow.png";
+            image.border: 64 64 64 64;
+            image.border_scale_by: 0.5;
+            image.border_scale: 1;
+            color_class: "/shadow/normal/term/drag_thumb";
+            fill.smooth: 0;
+            offscale;
+         }
+      }
+
+      ////////////////////////////////////////////////////////////////////
+      // swallowed terminal content + bg inside it
+      part { name: "base"; type: RECT;
+         clip_to: "clip";
+         description { state: "default" 0.0;
+            color_class: "BG";
+            rel.to: "terminology.content";
+         }
+      }
+      part { name: "terminology.content"; type: SWALLOW;
+         clip_to: "clip";
+         description { state: "default" 0.0;
+         }
+      }
+
+      part { name: "terminology.title"; type: TEXT; mouse_events: 0;
+         scale: 1;
+         description { state: "default" 0.0;
+            rel.to: "terminology.content";
+            rel1.offset: 4 4;
+            rel2.offset: -5 -5;
+            color_class: "/fg/normal/term/sel/title/text";
+            align: 0.5 0.0;
+            offscale;
+            text { font: "Sans"; size: 10;
+               align: 0.5 1.0;
+               min: 0 1;
+            }
+         }
+      }
+
+      ////////////////////////////////////////////////////////////////////
+      // visual bell - spinning red siren light
+      images.image: "circle-1200.png" COMP;
+      images.image: "strobe-600.png" COMP;
+      part { name: "bell_glow"; mouse_events: 0;
+         scale: 1;
+         description { state: "default" 0.0;
+            fixed: 1 1;
+            visible: 0;
+            color: 255 80 60 0; // no cc
+            rel.to: "bell";
+            min: 100 100;
+            image.normal: "circle-1200.png";
+         }
+         description { state: "visible" 0.0;
+            inherit: "default" 0.0;
+            visible: 1;
+            color: 255 80 60 32;
+         }
+      }
+      part { name: "bell_glow2"; mouse_events: 0;
+         scale: 1;
+         description { state: "default" 0.0;
+            fixed: 1 1;
+            visible: 0;
+            color: 255 240 160 0; // no cc
+            rel.to: "bell";
+            min: 50 50;
+            image.normal: "circle-1200.png";
+         }
+         description { state: "visible" 0.0;
+            inherit: "default" 0.0;
+            visible: 1;
+            color: 255 220 120 32;
+         }
+      }
+      part { name: "bell_strobe";
+         mouse_events: 0;
+         description { state: "default" 0.0;
+            fixed: 1 1;
+            color: 255 255 200 255;
+            rel.to: "bell_glow2";
+            image.normal: "strobe-600.png";
+            rel1.relative: -0.5 -0.5;
+            rel2.relative: 1.5 1.5;
+            map {
+               on: 1;
+               smooth: 1;
+               rotation.center: "bell";
+            }
+            visible: 0;
+         }
+         description { state: "spin" 0.0;
+            inherit: "default" 0.0;
+            map.rotation.z: 0.0;
+            visible: 1;
+         }
+         description { state: "spin_done" 0.0;
+            inherit: "default" 0.0;
+            map.rotation.z: 720.0;
+            visible: 1;
+         }
+      }
+      part { name: "bell";
+         mouse_events: 0;
+         scale: 1;
+         description { state: "default" 0.0;
+            fixed: 1 1;
+            visible: 0;
+            color: 255 255 255 0;
+            max: 20 20;
+            min: 20 20;
+            align: 1.0 1.0;
+            rel1.offset: 15 15;
+            rel2.offset: -16 -16;
+            rel.to: "terminology.content";
+            image.normal: "circle-1200.png";
+            offscale;
+         }
+         description { state: "visible" 0.0;
+            inherit: "default" 0.0;
+            visible: 1;
+            color: 255 255 255 255;
+         }
+      }
+      program { signal: "bell"; source: "terminology";
+         action: STATE_SET "visible" 0.0;
+         target: "bell";
+         target: "bell_glow";
+         target: "bell_glow2";
+         after: "bell3";
+      }
+      program { name: "bell3";
+         action: STATE_SET "spin" 0.0;
+         transition: LINEAR 0.1;
+         target: "bell_strobe";
+         after: "bell4.1";
+      }
+      program { name: "bell4.1";
+         action: STATE_SET "spin" 0.0;
+         target: "bell_strobe";
+         after: "bell4.2";
+      }
+      program { name: "bell4.2";
+         action: STATE_SET "spin_done" 0.0;
+         transition: LINEAR 0.9;
+         target: "bell_strobe";
+         after: "bell4.1";
+      }
+   }
+}

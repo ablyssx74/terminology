@@ -1,0 +1,1128 @@
+# SOME DESCRIPTIVE TITLE.
+# This file is put in the public domain.
+# Arthur Nikitenko <niko2040@4e.by>, 2021, 2022, 2023.
+msgid ""
+msgstr ""
+"Project-Id-Version: terminology\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-03-13 22:21+0100\n"
+"PO-Revision-Date: 2023-11-12 22:03+0000\n"
+"Last-Translator: Arthur Nikitenko <niko2040@4e.by>\n"
+"Language-Team: Russian <https://hosted.weblate.org/projects/terminology/"
+"terminology/ru/>\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
+"X-Generator: Weblate 5.2-dev\n"
+
+#: src/bin/about.c:129 src/bin/about.c:204 src/bin/termio.c:1339
+#: src/bin/termio.c:1348
+#, c-format
+msgid "Copy '%s'"
+msgstr "Копировать '%s'"
+
+#: src/bin/about.c:134 src/bin/about.c:209 src/bin/termio.c:1410
+msgid "Open"
+msgstr "Открыть"
+
+#: src/bin/about.c:273
+msgid "Twitter: @_Terminology_"
+msgstr "Twitter: @_Terminology_"
+
+#: src/bin/about.c:275
+msgid "YouTube channel"
+msgstr "Канал YouTube"
+
+#: src/bin/about.c:289
+#, c-format
+msgid ""
+"<b>Terminology %s</b><br>Why should terminals be boring?<br><br>This "
+"terminal was written for Enlightenment, to use EFL and otherwise push the "
+"boundaries of what a modern terminal emulator should be. We hope you enjoy "
+"it.<br><br>Copyright © 2012-%d by:<br><br>%s<br><br>Distributed under the 2-"
+"clause BSD license detailed below:<br><br>%s"
+msgstr ""
+"<b>Terminology %s</b><br>Почему эмулятор терминала должен быть скучным?"
+"<br><br>Этот терминал написан для Enlightenment, использует EFL и расширяет "
+"границы того, чем должен быть современный эмулятор терминала. Мы надеемся, "
+"он Вам понравится.<br><br>Copyright © 2012-%d by:"
+"<br><br>%s<br><br>Distributed under the 2-clause BSD license detailed below:"
+"<br><br>%s"
+
+#: src/bin/colors.c:17
+msgid "Terminology's developers"
+msgstr "Разработчики Terminology"
+
+#: src/bin/controls.c:371
+msgid "Controls"
+msgstr "Управление"
+
+#: src/bin/controls.c:387
+msgid "New"
+msgstr "Новая"
+
+#: src/bin/controls.c:395
+msgid "Split V"
+msgstr "Разделить V"
+
+#: src/bin/controls.c:399
+msgid "Split H"
+msgstr "Разделить H"
+
+#: src/bin/controls.c:406
+msgid "Miniview"
+msgstr "Мини-карта"
+
+#: src/bin/controls.c:413 src/bin/win.c:6205
+msgid "Set title"
+msgstr "Заголовок"
+
+#: src/bin/controls.c:424 src/bin/termio.c:1424 src/bin/termio.c:2834
+msgid "Copy"
+msgstr "Копировать"
+
+#: src/bin/controls.c:430
+msgid "Paste"
+msgstr "Вставить"
+
+#: src/bin/controls.c:436
+msgid "Settings"
+msgstr "Настройки"
+
+#: src/bin/controls.c:442
+msgid "About"
+msgstr "О программе"
+
+#: src/bin/controls.c:451
+msgid "Grouped input"
+msgstr "Множественный ввод"
+
+#: src/bin/controls.c:463
+msgid "Close Terminal"
+msgstr "Закрыть терминал"
+
+#: src/bin/gravatar.c:121 src/bin/main.c:898 src/bin/miniview.c:41
+#, c-format
+msgid "Could not create logging domain '%s'"
+msgstr "Невозможно создать опрос домена '%s'"
+
+#: src/bin/keyin.c:681
+msgid "Scrolling"
+msgstr "Прокрутка"
+
+#: src/bin/keyin.c:682
+msgid "Scroll one page up"
+msgstr "Прокрутить на одну страницу вверх"
+
+#: src/bin/keyin.c:683
+msgid "Scroll one page down"
+msgstr "Прокрутить на одну страницу вниз"
+
+#: src/bin/keyin.c:684
+msgid "Scroll one line up"
+msgstr "Прокрутить на одну строку вверх"
+
+#: src/bin/keyin.c:685
+msgid "Scroll one line down"
+msgstr "Прокрутить на одну строку вниз"
+
+#: src/bin/keyin.c:686
+msgid "Go to the top of the backlog"
+msgstr "Прокрутить в начало"
+
+#: src/bin/keyin.c:687
+msgid "Reset scroll"
+msgstr "Сбросить прокрутку"
+
+#: src/bin/keyin.c:689
+msgid "Copy/Paste"
+msgstr "Копировать/Вставить"
+
+#: src/bin/keyin.c:690
+msgid "Copy selection to Primary buffer"
+msgstr "Копировать выделенное в Основной буфер"
+
+#: src/bin/keyin.c:691
+msgid "Copy selection to Clipboard buffer"
+msgstr "Копировать выделенное в Буфер обмена"
+
+#: src/bin/keyin.c:692
+msgid "Paste Primary buffer (highlight)"
+msgstr "Вставить из Основного буфера (выделенное)"
+
+#: src/bin/keyin.c:693
+msgid "Paste Clipboard buffer (ctrl+c/v)"
+msgstr "Вставить из Буфера обмена (ctrl+c/v)"
+
+#: src/bin/keyin.c:695
+msgid "Splits/Tabs"
+msgstr "Разделение/Вкладки"
+
+#: src/bin/keyin.c:696
+msgid "Focus the previous terminal"
+msgstr "Перевести фокус на предыдущий терминал"
+
+#: src/bin/keyin.c:697
+msgid "Focus the next terminal"
+msgstr "Перевести фокус на следующий терминал"
+
+#: src/bin/keyin.c:698
+msgid "Focus the terminal above"
+msgstr "Перевести фокус на терминал выше"
+
+#: src/bin/keyin.c:699
+msgid "Focus the terminal below"
+msgstr "Перевести фокус на терминал ниже"
+
+#: src/bin/keyin.c:700
+msgid "Focus the terminal on the left"
+msgstr "Перевести фокус на терминал слева"
+
+#: src/bin/keyin.c:701
+msgid "Focus the terminal on the right"
+msgstr "Перевести фокус на терминал справа"
+
+#: src/bin/keyin.c:702
+msgid "Split horizontally (new below)"
+msgstr "Разделить по горизонтали (новый ниже)"
+
+#: src/bin/keyin.c:703
+msgid "Split vertically (new on right)"
+msgstr "Разделить по вертикали (новый справа)"
+
+#: src/bin/keyin.c:704
+msgid "Create a new \"tab\""
+msgstr "Создать новую \"вкладку\""
+
+#: src/bin/keyin.c:705
+msgid "Close the focused terminal"
+msgstr "Закрыть терминал с активным фокусом"
+
+#: src/bin/keyin.c:706
+msgid "Bring up \"tab\" switcher"
+msgstr "Вызвать \"переключать вкладок\""
+
+#: src/bin/keyin.c:707
+msgid "Switch to terminal tab 1"
+msgstr "Переключится на вкладку 1"
+
+#: src/bin/keyin.c:708
+msgid "Switch to terminal tab 2"
+msgstr "Переключится на вкладку 2"
+
+#: src/bin/keyin.c:709
+msgid "Switch to terminal tab 3"
+msgstr "Переключится на вкладку 3"
+
+#: src/bin/keyin.c:710
+msgid "Switch to terminal tab 4"
+msgstr "Переключится на вкладку 4"
+
+#: src/bin/keyin.c:711
+msgid "Switch to terminal tab 5"
+msgstr "Переключится на вкладку 5"
+
+#: src/bin/keyin.c:712
+msgid "Switch to terminal tab 6"
+msgstr "Переключится на вкладку 6"
+
+#: src/bin/keyin.c:713
+msgid "Switch to terminal tab 7"
+msgstr "Переключится на вкладку 7"
+
+#: src/bin/keyin.c:714
+msgid "Switch to terminal tab 8"
+msgstr "Переключится на вкладку 8"
+
+#: src/bin/keyin.c:715
+msgid "Switch to terminal tab 9"
+msgstr "Переключится на вкладку 9"
+
+#: src/bin/keyin.c:716
+msgid "Switch to terminal tab 10"
+msgstr "Переключится на вкладку 10"
+
+#: src/bin/keyin.c:717
+msgid "Change title"
+msgstr "Изменить заголовок"
+
+#: src/bin/keyin.c:718 src/bin/keyin.c:719
+msgid "Toggle whether input goes to all visible terminals"
+msgstr "Переключить режим ввода на все видимые терминалы"
+
+#: src/bin/keyin.c:722
+msgid "Font size"
+msgstr "Размер шрифта"
+
+#: src/bin/keyin.c:723
+msgid "Font size up 1"
+msgstr "Увеличить размер шрифта на 1"
+
+#: src/bin/keyin.c:724
+msgid "Font size down 1"
+msgstr "Уменьшить размер шрифта на 1"
+
+#: src/bin/keyin.c:725
+msgid "Display big font size"
+msgstr "Отображать в большом размере шрифта"
+
+#: src/bin/keyin.c:726
+msgid "Reset font size"
+msgstr "Сбросить размер шрифта"
+
+#: src/bin/keyin.c:728
+msgid "Actions"
+msgstr "Действия"
+
+#: src/bin/keyin.c:729
+msgid "Open a new terminal window"
+msgstr "Открыть новое окно терминала"
+
+#: src/bin/keyin.c:730
+msgid "Toggle Fullscreen of the window"
+msgstr "Переключить Полноэкранный режим окна"
+
+#: src/bin/keyin.c:731
+msgid "Display the history miniview"
+msgstr "Отобразить мини-карту истории"
+
+#: src/bin/keyin.c:732
+msgid "Display the command box"
+msgstr "Отобразить поле для команд"
+
+#: src/bin/main.c:406 src/bin/main.c:602
+msgid "Could not create window"
+msgstr "Не удалось создать окно"
+
+#: src/bin/main.c:425 src/bin/main.c:613
+msgid "Could not create terminal widget"
+msgstr "Не удалось создать виджет терминала"
+
+#: src/bin/main.c:460
+#, c-format
+msgid "(C) 2012-%d Carsten Haitzler and others"
+msgstr "(C) 2012-%d Carsten Haitzler и другие"
+
+#: src/bin/main.c:462
+msgid "Terminal emulator written with Enlightenment Foundation Libraries"
+msgstr ""
+"Эмулятор терминала, написанный с использованием Enlightenment Foundation "
+"Libraries"
+
+#: src/bin/main.c:466
+msgid "Use the named file as a background wallpaper"
+msgstr "Использовать указанный файл в качестве фона"
+
+#: src/bin/main.c:468
+msgid "Change to directory for execution of terminal command"
+msgstr "Изменить каталог для выполнения команды терминала"
+
+#: src/bin/main.c:470
+msgid "Command to execute. Defaults to $SHELL (or passwd shell or /bin/sh)"
+msgstr ""
+"Команда для выполнения. По умолчанию $SHELL (или passwd shell или /bin/sh)"
+
+#: src/bin/main.c:472
+msgid "Use the named edje theme or path to theme file"
+msgstr "Использовать указанную тему или путь к файлу темы"
+
+#: src/bin/main.c:474
+msgid "Use the named color scheme"
+msgstr "Использовать указанную цветовую схему"
+
+#: src/bin/main.c:476
+msgid "Terminal geometry to use (eg 80x24 or 80x24+50+20 etc.)"
+msgstr "Геометрия терминала (к пр. 80x24 или 80x24+50+20 и т.д.)"
+
+#: src/bin/main.c:478
+msgid "Set window name"
+msgstr "Задать имя окна"
+
+#: src/bin/main.c:480
+msgid "Set window role"
+msgstr "Задать роль окна"
+
+#: src/bin/main.c:482
+msgid "Set window title"
+msgstr "Задать заголовок окна"
+
+#: src/bin/main.c:484
+msgid "Set icon name"
+msgstr "Задать название иконки"
+
+#: src/bin/main.c:486
+msgid "Set font (NAME/SIZE for scalable, NAME for bitmap)"
+msgstr "Задать шрифт (НАЗВАНИЕ/РАЗМЕР для векторного, НАЗВАНИЕ для растрового)"
+
+#: src/bin/main.c:488
+msgid ""
+"Split the terminal window. 'v' for vertical and 'h' for horizontal. Can be "
+"used multiple times. eg -S vhvv or --split hv More description available on "
+"the man page"
+msgstr ""
+"Разделить окно терминала. 'v' для вертикального и 'h' для горизонтального "
+"разделения. Может указываться несколько раз, к примеру -S vhvv или --split "
+"hv Подробное описание доступно в справочной странице (man)"
+
+#: src/bin/main.c:493
+msgid "Run the shell as a login shell"
+msgstr "Запустить оболочку в качестве оболочки входа в систему"
+
+#: src/bin/main.c:495
+msgid "Set mute mode for video playback"
+msgstr "Задать беззвучный режим для воспроизведения видео"
+
+#: src/bin/main.c:497
+msgid "Set cursor blink mode"
+msgstr "Задать режим мигания курсора"
+
+#: src/bin/main.c:499
+msgid "Set visual bell mode"
+msgstr "Задать режим визуального звукового сигнала"
+
+#: src/bin/main.c:501
+msgid "Go into the fullscreen mode from the start"
+msgstr "Перейти в полноэкранный режим при запуске"
+
+#: src/bin/main.c:503
+msgid "Start iconified"
+msgstr "Запуск в свёрнутом виде"
+
+#: src/bin/main.c:505
+msgid "Start borderless"
+msgstr "Запуск в окне без рамки"
+
+#: src/bin/main.c:507
+msgid "Start as a override-redirect window"
+msgstr "Запуск в окне без перенаправления в композит"
+
+#: src/bin/main.c:509
+msgid "Start maximized"
+msgstr "Запуск в развёрнутом окне"
+
+#: src/bin/main.c:511
+msgid "Terminology is run without a window manager"
+msgstr "Запустить Terminology без менеджера окон"
+
+#: src/bin/main.c:513
+msgid "Do not exit when the command process exits"
+msgstr "Не выходить пока существует процесс команды"
+
+#: src/bin/main.c:515
+msgid "Force single executable if multi-instance is enabled"
+msgstr ""
+"Принудительно использовать один процесс, если разрешено запускать несколько "
+"экземпляров"
+
+#: src/bin/main.c:517
+msgid "Set TERM to 'xterm-256color' instead of 'xterm'"
+msgstr "Установить переменную TERM как 'xterm-256color' вместо 'xterm'"
+
+#: src/bin/main.c:519
+msgid "Set scaling factor"
+msgstr "Задать коэффициент масштабирования"
+
+#: src/bin/main.c:521
+msgid "Highlight links"
+msgstr "Подсвечивать ссылки"
+
+#: src/bin/main.c:523
+msgid "Do not display wizard on start up"
+msgstr "Не отображать мастер при запуске"
+
+#: src/bin/main.c:549
+msgid "show program version"
+msgstr "показать версию программы"
+
+#: src/bin/main.c:552
+msgid "show copyright"
+msgstr "показать copyright"
+
+#: src/bin/main.c:555
+msgid "show license"
+msgstr "показать лицензию"
+
+#: src/bin/main.c:558
+msgid "show this message"
+msgstr "показать это сообщение"
+
+#: src/bin/main.c:655
+msgid "invalid argument found for option -S/--split. See --help"
+msgstr "неверный аргумент для параметра -S/--split. Смотрите --help"
+
+#: src/bin/main.c:909
+msgid "Could not initialize key bindings"
+msgstr "Не удалось инициализировать привязки клавиш"
+
+#: src/bin/main.c:925
+msgid "Could not parse command line options"
+msgstr "Не удалось распознать параметры командной строки"
+
+#: src/bin/main.c:949
+#, c-format
+msgid "option %s requires an argument!"
+msgstr "параметр %s требует аргумент!"
+
+#: src/bin/main.c:950
+msgid "invalid options found. See --help"
+msgstr "обнаружен неверный параметр. Смотрите --help"
+
+#: src/bin/media.c:1337 src/bin/termpty.c:646 src/bin/termpty.c:651
+#: src/bin/termpty.c:655
+#, c-format
+msgid "Function %s failed: %s"
+msgstr "Ошибка функции %s: %s"
+
+#: src/bin/media.c:1434
+msgid "Media visualizing is not supported"
+msgstr "Визуализация медиа не поддерживается"
+
+#: src/bin/options_background.c:136
+msgid "None"
+msgstr "Нет"
+
+#: src/bin/options_background.c:468
+msgid "Source file is target file"
+msgstr "Исходный файл является целевым файлом"
+
+#: src/bin/options_background.c:481
+msgid "Picture imported"
+msgstr "Изображение импортировано"
+
+#: src/bin/options_background.c:486
+msgid "Failed"
+msgstr "Ошибка"
+
+#: src/bin/options_background.c:538 src/bin/options.c:221
+msgid "Background"
+msgstr "Фон"
+
+#: src/bin/options_background.c:554
+msgid "Translucent"
+msgstr "Прозрачность"
+
+#: src/bin/options_background.c:565
+msgid "Opacity:"
+msgstr "Прозрачность:"
+
+#: src/bin/options_background.c:573 src/bin/options_background.c:574
+#, c-format
+msgid "%1.0f%%"
+msgstr "%1.0f%%"
+
+#: src/bin/options_background.c:592
+msgid "Select Path"
+msgstr "Выбрать путь"
+
+#: src/bin/options_background.c:598
+msgid "System"
+msgstr "Системный"
+
+#: src/bin/options_background.c:601
+msgid "User"
+msgstr "Пользовательский"
+
+#: src/bin/options_background.c:604
+msgid "Other"
+msgstr "Другой"
+
+#: src/bin/options_background.c:646
+msgid "Click on a picture to use it as background"
+msgstr "Нажмите на изображение, чтобы использовать его в качестве фона"
+
+#: src/bin/options_behavior.c:64
+#, c-format
+msgid "%'d lines"
+msgstr "%'d строк"
+
+#: src/bin/options_behavior.c:80
+#, c-format
+msgid "Scrollback (current memory usage: %'.2f%cB):"
+msgstr "Сохранять для прокрутки (текущее использование памяти: %'.2f%cB):"
+
+#: src/bin/options_behavior.c:218
+msgid "Default cursor:"
+msgstr "Стандартный курсор:"
+
+#: src/bin/options_behavior.c:227
+msgid "Blinking Block"
+msgstr "Мигающий квадрат"
+
+#: src/bin/options_behavior.c:246
+msgid "Steady Block"
+msgstr "Статичный квадрат"
+
+#: src/bin/options_behavior.c:266
+msgid "Blinking Underline"
+msgstr "Мигающее подчёркивание"
+
+#: src/bin/options_behavior.c:286
+msgid "Steady Underline"
+msgstr "Статичное подчёркивание"
+
+#: src/bin/options_behavior.c:306
+msgid "Blinking Bar"
+msgstr "Мигающая полоса"
+
+#: src/bin/options_behavior.c:326
+msgid "Steady Bar"
+msgstr "Статичная полоса"
+
+#: src/bin/options_behavior.c:366 src/bin/options.c:217
+msgid "Behavior"
+msgstr "Поведение"
+
+#: src/bin/options_behavior.c:386
+msgid "Show tabs"
+msgstr "Показывать вкладки"
+
+#: src/bin/options_behavior.c:389
+msgid "Scroll to bottom on new content"
+msgstr "Прокручивать вниз при появлении нового содержимого"
+
+#: src/bin/options_behavior.c:390
+msgid "Scroll to bottom when a key is pressed"
+msgstr "Прокручивать вниз при нажатии клавиши"
+
+#: src/bin/options_behavior.c:396
+msgid "React to key presses (typing sounds and animations)"
+msgstr "Реакция на нажатие клавиш (звуки и анимация)"
+
+#: src/bin/options_behavior.c:403
+msgid "Audio Support for key presses <failure>DISABLED</failure>!"
+msgstr "Поддержка звука на нажатия клавиш <failure>ОТКЛЮЧЕНО</failure>!"
+
+#: src/bin/options_behavior.c:407
+msgid "Visual Bell"
+msgstr "Визуальный звуковой сигнал"
+
+#: src/bin/options_behavior.c:408
+msgid "Bell rings"
+msgstr "Проигрывать звуковой сигнал"
+
+#: src/bin/options_behavior.c:409
+msgid "Urgent Bell"
+msgstr "Экстренный звуковой сигнал"
+
+#: src/bin/options_behavior.c:411
+msgid "Multiple instances, one process"
+msgstr "Использовать один процесс для нескольких экземпляров"
+
+#: src/bin/options_behavior.c:412
+msgid "Set TERM to xterm-256color"
+msgstr "Задать переменную TERM как xterm-256color"
+
+#: src/bin/options_behavior.c:413
+msgid "BackArrow sends Del (instead of BackSpace)"
+msgstr "Отправлять сигнал Del при нажатии на BackSpace"
+
+#: src/bin/options_behavior.c:414
+msgid "Start as login shell"
+msgstr "Запускать в качестве оболочки входа"
+
+#: src/bin/options_behavior.c:415
+msgid "Open new terminals in current working directory"
+msgstr "Открывать новые терминалы в текущем рабочем каталоге"
+
+#: src/bin/options_behavior.c:416
+msgid "Always show miniview"
+msgstr "Всегда показывать мини-предпросмотр"
+
+#: src/bin/options_behavior.c:417
+msgid "Enable special Terminology escape codes"
+msgstr "Включить специальные экранирующие последовательности Terminology"
+
+#: src/bin/options_behavior.c:418
+msgid "Enable escape codes manipulating selections"
+msgstr "Включить экранирующие последовательности, управляющие выделением"
+
+#: src/bin/options_behavior.c:419
+msgid "Always treat Emojis as double-width characters"
+msgstr "Всегда обрабатывать Emoji как символы двойной ширины"
+
+#: src/bin/options_behavior.c:420
+msgid ""
+"When grouping input, do it on all terminals and not just the visible ones"
+msgstr ""
+"При множественном вводе активировать его на всех терминалах, а не только на "
+"видимых"
+
+#: src/bin/options_behavior.c:427
+msgid "Always open at size:"
+msgstr "Всегда запускать с размером:"
+
+#: src/bin/options_behavior.c:437
+msgid "Set Current:"
+msgstr "Установить текущий:"
+
+#: src/bin/options_behavior.c:448
+msgid "Width:"
+msgstr "Ширина:"
+
+#: src/bin/options_behavior.c:470
+msgid "Height:"
+msgstr "Высота:"
+
+#: src/bin/options_behavior.c:529
+msgid ""
+"Set the time of the animation that<br>takes places during tab switches,"
+"<br>be those done due to key bindings or <br>mouse wheel over the tabs panel"
+msgstr ""
+"Задаёт время анимации при<br>переключении вкладок<br>привязками клавиш или "
+"колёсиком<br>мыши на панели вкладок"
+
+#: src/bin/options_behavior.c:534
+msgid "Tab zoom/switch animation time:"
+msgstr "Время анимации масштабирования/переключения вкладки:"
+
+#: src/bin/options_behavior.c:542 src/bin/options_behavior.c:543
+#: src/bin/options_mouse.c:186 src/bin/options_mouse.c:187
+#, c-format
+msgid "%1.1f s"
+msgstr "%1.1f с"
+
+#: src/bin/options.c:189
+msgid "Options"
+msgstr "Настройки"
+
+#: src/bin/options.c:218 src/bin/options_mouse.c:147
+msgid "Mouse"
+msgstr "Мышь"
+
+#: src/bin/options.c:219 src/bin/options_font.c:499
+msgid "Font"
+msgstr "Шрифт"
+
+#: src/bin/options.c:220 src/bin/options_theme.c:168
+msgid "Theme"
+msgstr "Тема"
+
+#: src/bin/options.c:222
+msgid "Colors"
+msgstr "Цвета"
+
+#: src/bin/options.c:223
+msgid "Keys"
+msgstr "Горячие клавиши"
+
+#: src/bin/options.c:224 src/bin/options_elm.c:109
+msgid "Toolkit"
+msgstr "Фреймворк"
+
+#: src/bin/options.c:235
+msgid "Temporary"
+msgstr "Временно"
+
+#: src/bin/options_colors.c:99
+msgid "Open website"
+msgstr "Открыть сайт"
+
+#: src/bin/options_colors.c:131
+#, c-format
+msgid "<b>Author: </b>%s<br/><b>Website: </b>%s<br/><b>License: </b>%s"
+msgstr "<b>Автор: </b>%s<br/><b>Сайт: </b>%s<br/><b>Лицензия: </b>%s"
+
+#: src/bin/options_colors.c:226
+msgid "Color schemes"
+msgstr "Цветовые схемы"
+
+#: src/bin/options_colors.c:265
+#, c-format
+msgid "Using theme <hilight>%s</hilight>"
+msgstr "Используется тема <hilight>%s</hilight>"
+
+#: src/bin/options_elm.c:122
+#, c-format
+msgid ""
+"<em>Terminology</em> uses the <hilight>elementary</hilight> toolkit.<br>The "
+"toolkit configuration settings can be accessed by running <keyword>%s</"
+"keyword>"
+msgstr ""
+"<em>Terminology</em> использует набор элементов <hilight>elementary</"
+"hilight>.<br>Настроить набор элементов можно командой <keyword>%s</keyword>"
+
+#: src/bin/options_elm.c:134
+#, c-format
+msgid "Launch %s"
+msgstr "Запустить %s"
+
+#: src/bin/options_elm.c:150 src/bin/win.c:383 src/bin/win.c:403
+msgid "Scale"
+msgstr "Масштаб"
+
+#: src/bin/options_elm.c:172 src/bin/win.c:432
+msgid "Select preferred size so that this text is readable"
+msgstr "Выберите предпочтительный размер, чтобы текст был читаемым"
+
+#: src/bin/options_elm.c:180
+msgid ""
+"The scale configuration can also be changed through <hilight>elementary</"
+"hilight>'s configuration panel"
+msgstr ""
+"Масштаб можно также изменить в панели конфигурации <hilight>elementary</"
+"hilight>"
+
+#: src/bin/options_font.c:550
+msgid "Search font"
+msgstr "Поиск шрифта"
+
+#: src/bin/options_font.c:578
+msgid "Bitmap"
+msgstr "Растровые"
+
+#: src/bin/options_font.c:619
+msgid "Standard"
+msgstr "Обычные"
+
+#: src/bin/options_font.c:681
+msgid "Display bold and italic in the terminal"
+msgstr "Отображать жирный и курсивный в терминале"
+
+#: src/bin/options_keys.c:66
+msgid "Ctrl+"
+msgstr "Ctrl+"
+
+#: src/bin/options_keys.c:67
+msgid "Alt+"
+msgstr "Alt+"
+
+#: src/bin/options_keys.c:68
+msgid "Shift+"
+msgstr "Shift+"
+
+#: src/bin/options_keys.c:69
+msgid "Win+"
+msgstr "Win+"
+
+#: src/bin/options_keys.c:70
+msgid "Meta+"
+msgstr "Meta+"
+
+#: src/bin/options_keys.c:71
+msgid "Hyper+"
+msgstr "Hyper+"
+
+#: src/bin/options_keys.c:82
+msgid "Delete"
+msgstr "Удалить"
+
+#: src/bin/options_keys.c:270
+msgid "Please press key sequence"
+msgstr "Пожалуйста, нажмите комбинацию клавиш"
+
+#: src/bin/options_keys.c:386
+msgid "Key Bindings"
+msgstr "Привязки клавиш"
+
+#: src/bin/options_keys.c:458
+msgid "Reset bindings"
+msgstr "Сбросить привязку клавиш"
+
+#: src/bin/options_mouse.c:167
+msgid "Focus split under the Mouse"
+msgstr "Переводить фокус разделённого окна по наведению мыши"
+
+#: src/bin/options_mouse.c:168
+msgid "Focus-related visuals"
+msgstr "Визуальные эффекты при изменении фокуса"
+
+#: src/bin/options_mouse.c:174
+msgid "Auto hide the mouse cursor when idle:"
+msgstr "Прятать курсор мыши при неактивности:"
+
+#: src/bin/options_mouse.c:204
+msgid "Active Links:"
+msgstr "Активные ссылки:"
+
+#: src/bin/options_mouse.c:208
+msgid "On emails"
+msgstr "Для E-Mail"
+
+#: src/bin/options_mouse.c:209
+msgid "On file paths"
+msgstr "Для файловых путей"
+
+#: src/bin/options_mouse.c:210
+msgid "On URLs"
+msgstr "Для URL"
+
+#: src/bin/options_mouse.c:211
+msgid "On colors"
+msgstr "Для цветовых кодов"
+
+#: src/bin/options_mouse.c:212
+msgid "Based on escape codes"
+msgstr "На основе экранирующих последовательностей"
+
+#: src/bin/options_mouse.c:213
+msgid "Gravatar integration"
+msgstr "Интеграция Gravatar"
+
+#: src/bin/options_mouse.c:215
+msgid "Drag & drop links"
+msgstr "Перетаскивание ссылок"
+
+#: src/bin/options_mouse.c:221
+msgid "Inline if possible"
+msgstr "Встроить при возможности"
+
+#: src/bin/options_mouse.c:265
+msgid "E-mail:"
+msgstr "E-mail:"
+
+#: src/bin/options_mouse.c:269
+msgid "URL (Images):"
+msgstr "URL (Изображения):"
+
+#: src/bin/options_mouse.c:270
+msgid "URL (Video):"
+msgstr "URL (Видео):"
+
+#: src/bin/options_mouse.c:271
+msgid "URL (All):"
+msgstr "URL (Все):"
+
+#: src/bin/options_mouse.c:274
+msgid "Local (Images):"
+msgstr "Локальные (Изображения):"
+
+#: src/bin/options_mouse.c:275
+msgid "Local (Video):"
+msgstr "Локальные (Видео):"
+
+#: src/bin/options_mouse.c:276
+msgid "Local (All):"
+msgstr "Локальные (Все):"
+
+#: src/bin/options_theme.c:187
+#, c-format
+msgid "Using colorscheme <hilight>%s</hilight>"
+msgstr "Используется цветовая схема <hilight>%s</hilight>"
+
+#: src/bin/termcmd.c:84
+#, c-format
+msgid "Unknown font command: %s"
+msgstr "Неизвестная команда шрифта: %s"
+
+#: src/bin/termcmd.c:118
+#, c-format
+msgid "Unknown grid size command: %s"
+msgstr "Неизвестная команда размера сетки: %s"
+
+#: src/bin/termcmd.c:146
+#, c-format
+msgid "Background file could not be read: %s"
+msgstr "Файл фона не может быть прочитан: %s"
+
+#: src/bin/termcmd.c:175
+#, c-format
+msgid "Unknown command: %s"
+msgstr "Неизвестная команда: %s"
+
+#: src/bin/termio.c:467
+#, c-format
+msgid "Could not get working directory of pid %i: %s"
+msgstr "Не удалось получить рабочий каталог процесса %i: %s"
+
+#: src/bin/termio.c:482
+#, c-format
+msgid "Could not load working directory %s: %s"
+msgstr "Не удалось загрузить рабочий каталог %s: %s"
+
+#: src/bin/termio.c:1247
+#, c-format
+msgid "unsupported selection format '%s'"
+msgstr "неподдерживаемый формат выделения '%s'"
+
+#: src/bin/termio.c:1407
+msgid "Preview"
+msgstr "Предпросмотр"
+
+#: src/bin/termio.c:1417
+msgid "Copy relative path"
+msgstr "Копировать относительный путь"
+
+#: src/bin/termio.c:1419
+msgid "Copy full path"
+msgstr "Копировать абсолютный путь"
+
+#: src/bin/termio.c:2836
+msgid "Open as URL"
+msgstr "Открыть как URL"
+
+#: src/bin/termio.c:4279
+msgid "Could not allocate termpty"
+msgstr "Невозможно выделить termpty"
+
+#: src/bin/termpty.c:99 src/bin/termpty.c:141 src/bin/termpty.c:188
+#, c-format
+msgid "memerr: %s"
+msgstr "ошибка памяти: %s"
+
+#: src/bin/termpty.c:225
+#, c-format
+msgid "Size set ioctl failed: %s"
+msgstr "Не удалось установить размер ioctl: %s"
+
+#: src/bin/termpty.c:361
+#, c-format
+msgid "Could not write to file descriptor %d: %s"
+msgstr "Не удалось записать в дескриптор файла %d: %s"
+
+#: src/bin/termpty.c:615
+#, c-format
+msgid "Could not find shell, falling back to %s"
+msgstr "Не удалось найти оболочку, используется %s"
+
+#: src/bin/termpty.c:662
+#, c-format
+msgid "open() of pty '%s' failed: %s"
+msgstr "не удалось выполнить open() pty '%s': %s"
+
+#: src/bin/termpty.c:669 src/bin/termpty.c:675
+#, c-format
+msgid "fcntl() on pty '%s' failed: %s"
+msgstr "не удалось выполнить fcntl() pty '%s': %s"
+
+#: src/bin/termpty.c:684
+#, c-format
+msgid "ioctl() on pty '%s' failed: %s"
+msgstr "не удалось выполнить ioctl() pty '%s': %s"
+
+#: src/bin/termpty.c:725 src/bin/termpty.c:733 src/bin/termpty.c:742
+#, c-format
+msgid "Could not change current directory to '%s': %s"
+msgstr "Невозможно изменить текущий каталог на '%s': %s"
+
+#: src/bin/theme.c:91
+#, c-format
+msgid "Could not load any theme for group=%s: %s"
+msgstr "Не удалось загрузить какую-либо тему для group=%s: %s"
+
+#: src/bin/win.c:424
+msgid "Done"
+msgstr "Готово"
+
+#: src/bin/win.c:440
+msgid ""
+"The scale configuration can be changed in the Settings (right click on the "
+"terminal) →  Toolkit, or by starting the command <keyword>elementary_config</"
+"keyword>"
+msgstr ""
+"Масштаб можно изменить в Настройках (клик правой кнопкой мыши по терминалу) "
+"→  Фреймворк, или запустив команду <keyword>elementary_config</keyword>"
+
+#: src/bin/win.c:2334
+msgid "Ecore IMF failed"
+msgstr "Ошибка Ecore IMF"
+
+#: src/bin/win.c:6209
+msgid "Ok"
+msgstr "Ок"
+
+#: src/bin/win.c:6214
+msgid "Cancel"
+msgstr "Отмена"
+
+#: src/bin/win.c:7413
+msgid "Couldn't find terminology theme! Forgot 'ninja install'?"
+msgstr "Не удалось найти тему для terminology! Забыли 'ninja install'?"
+
+#~ msgid "Shine:"
+#~ msgstr "Свечение:"
+
+#~ msgid "React to key presses"
+#~ msgstr "Реагировать на нажатия клавиш"
+
+#~ msgid "Become a borderless managed window"
+#~ msgstr "Запустить в режиме окна без рамок"
+
+#~ msgid "Become maximized from the start"
+#~ msgstr "Развернуть на весь экран при запуске"
+
+#~ msgid "Go into an iconic state from the start"
+#~ msgstr "Запустить в свёрнутом виде"
+
+#~ msgid "Default"
+#~ msgstr "Стандартный"
+
+#~ msgid "Black"
+#~ msgstr "Чёрный"
+
+#~ msgid "Red"
+#~ msgstr "Красный"
+
+#~ msgid "Green"
+#~ msgstr "Зелёный"
+
+#~ msgid "Yellow"
+#~ msgstr "Жёлтый"
+
+#~ msgid "Blue"
+#~ msgstr "Синий"
+
+#~ msgid "Magenta"
+#~ msgstr "Пурпурный"
+
+#~ msgid "Cyan"
+#~ msgstr "Голубой"
+
+#~ msgid "White"
+#~ msgstr "Белый"
+
+#~ msgid "Invisible"
+#~ msgstr "Невидимый"
+
+#~ msgid "Inverse"
+#~ msgstr "Инверсный"
+
+#~ msgid "Inverse Background"
+#~ msgstr "Инверсный фон"
+
+#~ msgid "Normal"
+#~ msgstr "Обычный"
+
+#~ msgid "Bright/Bold"
+#~ msgstr "Яркий/Жирный"
+
+#~ msgid "Intense"
+#~ msgstr "Насыщенный"
+
+#~ msgid "Intense Bright/Bold"
+#~ msgstr "Насыщенный Яркий/Жирный"
+
+#~ msgid "Reset all the colors"
+#~ msgstr "Сбросить все цвета"
+
+#~ msgid ""
+#~ "Could not find theme: file=%s group=%s error='%s', trying default theme"
+#~ msgstr ""
+#~ "Не удалось найти файл темы: file=%s group=%s error='%s', используется "
+#~ "тема по умолчанию"
+
+#~ msgid "Could not load default theme for group=%s: %s"
+#~ msgstr "Не удалось загрузить тему по умолчанию для group=%s: %s"
+
+#~ msgid "Set emotion module to use."
+#~ msgstr "Задать используемый модуль emotion."
+
+#~ msgid "Could not Initialize the emotion module '%s'"
+#~ msgstr "Невозможно инициализировать модуль emotion '%s'"
+
+#~ msgid "Video"
+#~ msgstr "Видео"
+
+#~ msgid "Audio muted"
+#~ msgstr "Приглушить звук"
+
+#~ msgid "Audio visualized"
+#~ msgstr "Визуализация аудио"
+
+#~ msgid "Video Engine:"
+#~ msgstr "Движок видео:"
+
+#~ msgid "Automatic"
+#~ msgstr "Автоматически"

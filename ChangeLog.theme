@@ -1,0 +1,86 @@
+==================
+Terminology 1.14.0
+==================
+
+Changes since 1.12.1:
+--------------------
+  * Add part "terminology.fade" in group "terminology/core" to set the color
+  used to fade the background of the terminal.  Terminology sets it to the
+  background color of the colorscheme.
+
+Changes since 1.11.0:
+--------------------
+  * New default theme!
+
+Changes since 1.8.0:
+--------------------
+  * Add group "terminology/color_preview" to display a preview of a
+  colorscheme.
+
+Changes since 1.7.0:
+--------------------
+  * Add group "terminology/color_preview", used to preview a color in a
+  tooltip.
+
+Changes since 1.6.0:
+--------------------
+  * Add group "terminology/tab_drag_thumb", used to have a thumbnail of a
+  terminal being dragged.
+  * In group "terminology/tabbar_back", add signal "bell,off" from "terminology"
+  to unmark a tab as having missed the bell.
+  * In group "terminology/background", add signals "hdrag,on" (default) and
+  "hdrag,off" to restrict (default) tab to be dragged only horizontally
+  * In group "terminology/background", signals "tab,mouse,down" is emitted
+  whenever the left mouse button is pressed on a tab.
+  * In group "terminology/background", signal "tab,hdrag" and "tab,drag,stop"
+  are emitted when the current tab is dragged between tabs.
+  * In group "terminology/background", signal "tab,drag,move" is emitted when
+  the current tab is dragged outside of the tabbar.
+  * In group "terminology/background", parts "tabdrag", "tabmiddle" are used
+  to adjust drag.
+  * In group "terminology/background", parts "drag_left_outline",
+  "drag_right_outline", "drag_top_outline", "drag_bottom_outline" are used to
+  know when the cursor enters them when dragging a tab into them.
+  * In group "terminology/background", signals "drag_left,on", "drag_left,off"
+  are received when the mouse, while dragging a tab, enters or leaves
+  "drag_left_outline". Same for right, top, bottom.
+  * In group "terminology/background", signals "drag_over_tabs,on",
+  "drag_over_tabs,off" are received when the mouse, while dragging a tab,
+  enters the tab region.
+  * In group "terminology/background", signals "grouped,on",
+  "grouped,off" are received when input is broadcast to multiple terms.
+  * In group "terminology/tabbar_back", signals "grouped,on",
+  "grouped,off" are received when input is broadcast to multiple terms.
+
+Changes since 1.5.0:
+--------------------
+  * In group "terminology/tabbar_back", add signal "bell" from "terminology"
+  to mark a tab as having the bell on.
+  * In group "terminology/background", add signals "tab,bell,on" and
+  "tab,bell,off" from "terminology" to set bell status on tab if there is a
+  tab.
+  * In group "terminology/background", change signals "tabcount,go",
+  "tabcount,prev", "tabcount,next" to "tab,go", "tab,prev" and "tab,next"
+  respectively.
+  * In group "terminology/background", add signal "tab,new" from "terminology"
+  to create a new tab.
+
+Changes since 1.2.0:
+--------------------
+  * Color class "BG" has to be set with the color of the background.
+
+Changes since 1.1.1:
+--------------------
+  * In group "terminology/background", "message" with id 2 requires an INT to
+  specify the amount of shine
+  * Add parts "terminology.sendfile.progress" and
+  "terminology.sendfile.request" in "terminology/background". See default.edc
+  for more details.
+  * Add groups "terminology/cursor_bar" and "terminology/cursor_underline"
+
+Changes since 0.9.1:
+--------------------
+  * In group "terminology/background", add signal "tab,close" with emitter set
+    to "terminology" to close the current tab
+  * In group "terminology/tabbar_back", add signal "tab,close" with emitter
+    set to "terminology" to close a tab in the background

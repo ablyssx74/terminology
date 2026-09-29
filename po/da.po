@@ -1,0 +1,1151 @@
+# Danish translation for Terminology
+# Copyright (C) 2017 Terminology development team
+# This file is distributed under the same license as the terminology package.
+# scootergrisen, 2017.
+#
+# scootergrisen <scootergrisen@gmail.com>, 2021.
+msgid ""
+msgstr ""
+"Project-Id-Version: terminology 1.1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-03-13 22:21+0100\n"
+"PO-Revision-Date: 2021-04-30 19:31+0000\n"
+"Last-Translator: scootergrisen <scootergrisen@gmail.com>\n"
+"Language-Team: Danish <https://hosted.weblate.org/projects/terminology/"
+"terminology/da/>\n"
+"Language: da\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 4.7-dev\n"
+
+#: src/bin/about.c:129 src/bin/about.c:204 src/bin/termio.c:1339
+#: src/bin/termio.c:1348
+#, c-format
+msgid "Copy '%s'"
+msgstr "Kopiér '%s'"
+
+#: src/bin/about.c:134 src/bin/about.c:209 src/bin/termio.c:1410
+msgid "Open"
+msgstr "Åbn"
+
+#: src/bin/about.c:273
+msgid "Twitter: @_Terminology_"
+msgstr "Twitter: @_Terminology_"
+
+#: src/bin/about.c:275
+msgid "YouTube channel"
+msgstr "YouTube-kanal"
+
+#: src/bin/about.c:289
+#, c-format
+msgid ""
+"<b>Terminology %s</b><br>Why should terminals be boring?<br><br>This "
+"terminal was written for Enlightenment, to use EFL and otherwise push the "
+"boundaries of what a modern terminal emulator should be. We hope you enjoy "
+"it.<br><br>Copyright © 2012-%d by:<br><br>%s<br><br>Distributed under the 2-"
+"clause BSD license detailed below:<br><br>%s"
+msgstr ""
+"<b>Terminology %s</b><br>Hvorfor skal terminaler være kedelige?<br><br>Denne "
+"terminal blev skrevet til Enlightenment, til at bruge EFL og på andre måder "
+"at skubbe grænserne for hvad en moderne terminalemulator skal være. Vil "
+"håber at du får glæde af den.<br><br>Ophavsret © 2012-%d af:"
+"<br><br>%s<br><br>Distribueret under den 2.-klausul BSD-licens detaljeret "
+"nedenfor:<br><br>%s"
+
+#: src/bin/colors.c:17
+msgid "Terminology's developers"
+msgstr "Terminologys udviklere"
+
+#: src/bin/controls.c:371
+msgid "Controls"
+msgstr "Styringer"
+
+#: src/bin/controls.c:387
+msgid "New"
+msgstr "Ny"
+
+#: src/bin/controls.c:395
+msgid "Split V"
+msgstr "Opdel lodret"
+
+#: src/bin/controls.c:399
+msgid "Split H"
+msgstr "Opdel vandret"
+
+#: src/bin/controls.c:406
+msgid "Miniview"
+msgstr "Minivisning"
+
+#: src/bin/controls.c:413 src/bin/win.c:6205
+msgid "Set title"
+msgstr "Indstil titel"
+
+#: src/bin/controls.c:424 src/bin/termio.c:1424 src/bin/termio.c:2834
+msgid "Copy"
+msgstr "Kopiér"
+
+#: src/bin/controls.c:430
+msgid "Paste"
+msgstr "Indsæt"
+
+#: src/bin/controls.c:436
+msgid "Settings"
+msgstr "Indstillinger"
+
+#: src/bin/controls.c:442
+msgid "About"
+msgstr "Om"
+
+#: src/bin/controls.c:451
+msgid "Grouped input"
+msgstr "Grupperet input"
+
+#: src/bin/controls.c:463
+msgid "Close Terminal"
+msgstr "Luk terminal"
+
+#: src/bin/gravatar.c:121 src/bin/main.c:898 src/bin/miniview.c:41
+#, c-format
+msgid "Could not create logging domain '%s'"
+msgstr "Kunne ikke oprette logningsdomænet '%s'"
+
+#: src/bin/keyin.c:681
+msgid "Scrolling"
+msgstr "Rulning"
+
+#: src/bin/keyin.c:682
+msgid "Scroll one page up"
+msgstr "Rul en side op"
+
+#: src/bin/keyin.c:683
+msgid "Scroll one page down"
+msgstr "Rul en side ned"
+
+#: src/bin/keyin.c:684
+msgid "Scroll one line up"
+msgstr "Rul en linje op"
+
+#: src/bin/keyin.c:685
+msgid "Scroll one line down"
+msgstr "Rul en linje ned"
+
+#: src/bin/keyin.c:686
+msgid "Go to the top of the backlog"
+msgstr "Gå til toppen af tilbage-loggen"
+
+#: src/bin/keyin.c:687
+msgid "Reset scroll"
+msgstr "Nulstil rulning"
+
+#: src/bin/keyin.c:689
+msgid "Copy/Paste"
+msgstr "Kopiér/indsæt"
+
+#: src/bin/keyin.c:690
+msgid "Copy selection to Primary buffer"
+msgstr "Kopiér markering til primær buffer"
+
+#: src/bin/keyin.c:691
+msgid "Copy selection to Clipboard buffer"
+msgstr "Kopiér markering til udklipsholderens buffer"
+
+#: src/bin/keyin.c:692
+msgid "Paste Primary buffer (highlight)"
+msgstr "Indsæt primær buffer (fremhæv)"
+
+#: src/bin/keyin.c:693
+msgid "Paste Clipboard buffer (ctrl+c/v)"
+msgstr "Indsæt udklipsholderens buffer (ctrl+c/v)"
+
+#: src/bin/keyin.c:695
+msgid "Splits/Tabs"
+msgstr "Opdelinger/faneblade"
+
+#: src/bin/keyin.c:696
+msgid "Focus the previous terminal"
+msgstr "Fokus til den forrige terminal"
+
+#: src/bin/keyin.c:697
+msgid "Focus the next terminal"
+msgstr "Fokus til den næste terminal"
+
+#: src/bin/keyin.c:698
+msgid "Focus the terminal above"
+msgstr "Fokus til terminalen ovenover"
+
+#: src/bin/keyin.c:699
+msgid "Focus the terminal below"
+msgstr "Fokus til terminalen nedenunder"
+
+#: src/bin/keyin.c:700
+msgid "Focus the terminal on the left"
+msgstr "Fokus til terminalen til venstre"
+
+#: src/bin/keyin.c:701
+msgid "Focus the terminal on the right"
+msgstr "Fokus til terminalen til højre"
+
+#: src/bin/keyin.c:702
+msgid "Split horizontally (new below)"
+msgstr "Opdel vandret (ny nedenfor)"
+
+#: src/bin/keyin.c:703
+msgid "Split vertically (new on right)"
+msgstr "Opdel lodret (ny til højre)"
+
+#: src/bin/keyin.c:704
+msgid "Create a new \"tab\""
+msgstr "Opret et nyt \"faneblad\""
+
+#: src/bin/keyin.c:705
+msgid "Close the focused terminal"
+msgstr "Luk den fokuserede terminal"
+
+#: src/bin/keyin.c:706
+msgid "Bring up \"tab\" switcher"
+msgstr "Frembring \"faneblad\"-skifter"
+
+#: src/bin/keyin.c:707
+msgid "Switch to terminal tab 1"
+msgstr "Skift til terminal-faneblade 1"
+
+#: src/bin/keyin.c:708
+msgid "Switch to terminal tab 2"
+msgstr "Skift til terminal-faneblade 2"
+
+#: src/bin/keyin.c:709
+msgid "Switch to terminal tab 3"
+msgstr "Skift til terminal-faneblade 3"
+
+#: src/bin/keyin.c:710
+msgid "Switch to terminal tab 4"
+msgstr "Skift til terminal-faneblade 4"
+
+#: src/bin/keyin.c:711
+msgid "Switch to terminal tab 5"
+msgstr "Skift til terminal-faneblade 5"
+
+#: src/bin/keyin.c:712
+msgid "Switch to terminal tab 6"
+msgstr "Skift til terminal-faneblade 6"
+
+#: src/bin/keyin.c:713
+msgid "Switch to terminal tab 7"
+msgstr "Skift til terminal-faneblade 7"
+
+#: src/bin/keyin.c:714
+msgid "Switch to terminal tab 8"
+msgstr "Skift til terminal-faneblade 8"
+
+#: src/bin/keyin.c:715
+msgid "Switch to terminal tab 9"
+msgstr "Skift til terminal-faneblade 9"
+
+#: src/bin/keyin.c:716
+msgid "Switch to terminal tab 10"
+msgstr "Skift til terminal-faneblade 10"
+
+#: src/bin/keyin.c:717
+msgid "Change title"
+msgstr "Skift titel"
+
+#: src/bin/keyin.c:718 src/bin/keyin.c:719
+msgid "Toggle whether input goes to all visible terminals"
+msgstr "Skift om input sendes til alle synlige terminaler"
+
+#: src/bin/keyin.c:722
+msgid "Font size"
+msgstr "Skriftstørrelse"
+
+#: src/bin/keyin.c:723
+msgid "Font size up 1"
+msgstr "Skriftstørrelse 1 op"
+
+#: src/bin/keyin.c:724
+msgid "Font size down 1"
+msgstr "Skriftstørrelse 1 ned"
+
+#: src/bin/keyin.c:725
+msgid "Display big font size"
+msgstr "Vis stor skriftstørrelse"
+
+#: src/bin/keyin.c:726
+msgid "Reset font size"
+msgstr "Nulstil skriftstørrelse"
+
+#: src/bin/keyin.c:728
+msgid "Actions"
+msgstr "Handlinger"
+
+#: src/bin/keyin.c:729
+msgid "Open a new terminal window"
+msgstr "Åbn et nyt terminalvindue"
+
+#: src/bin/keyin.c:730
+msgid "Toggle Fullscreen of the window"
+msgstr "Fuldskærm for vinduet til/fra"
+
+#: src/bin/keyin.c:731
+msgid "Display the history miniview"
+msgstr "Vis minivisning for historik"
+
+#: src/bin/keyin.c:732
+msgid "Display the command box"
+msgstr "Vis kommandoboksen"
+
+#: src/bin/main.c:406 src/bin/main.c:602
+msgid "Could not create window"
+msgstr "Kunne ikke oprette vindue"
+
+#: src/bin/main.c:425 src/bin/main.c:613
+msgid "Could not create terminal widget"
+msgstr "Kunne ikke oprette terminal-widget"
+
+#: src/bin/main.c:460
+#, c-format
+msgid "(C) 2012-%d Carsten Haitzler and others"
+msgstr "(C) 2012-%d Carsten Haitzler og andre"
+
+#: src/bin/main.c:462
+msgid "Terminal emulator written with Enlightenment Foundation Libraries"
+msgstr "Terminalemulator skrevet med Enlightenment Foundation Libraries"
+
+#: src/bin/main.c:466
+msgid "Use the named file as a background wallpaper"
+msgstr "Brug den navngivne fil som et baggrundstapet"
+
+#: src/bin/main.c:468
+msgid "Change to directory for execution of terminal command"
+msgstr "Skift til mappe for eksekvering af terminalkommando"
+
+#: src/bin/main.c:470
+msgid "Command to execute. Defaults to $SHELL (or passwd shell or /bin/sh)"
+msgstr ""
+"Kommando skal som eksekveres. Bruger $SHELL som standard (eller passwd-skal "
+"eller /bin/sh)"
+
+#: src/bin/main.c:472
+msgid "Use the named edje theme or path to theme file"
+msgstr "Brug det navngivne edje-tema eller sti til temafil"
+
+#: src/bin/main.c:474
+msgid "Use the named color scheme"
+msgstr "Brug det navngivede farvetema"
+
+#: src/bin/main.c:476
+msgid "Terminal geometry to use (eg 80x24 or 80x24+50+20 etc.)"
+msgstr ""
+"Terminalgeometrien som skal bruges (f.eks. 80x24 eller 80x24+50+20 osv.)"
+
+#: src/bin/main.c:478
+msgid "Set window name"
+msgstr "Indstil vinduets navn"
+
+#: src/bin/main.c:480
+msgid "Set window role"
+msgstr "Indstil vinduets rolle"
+
+#: src/bin/main.c:482
+msgid "Set window title"
+msgstr "Indstil vinduets titel"
+
+#: src/bin/main.c:484
+msgid "Set icon name"
+msgstr "Indstil ikonnavn"
+
+#: src/bin/main.c:486
+msgid "Set font (NAME/SIZE for scalable, NAME for bitmap)"
+msgstr "Indstil skrifttype (NAVN/STØRRELSE for skalerbar, NAVN for bitmap)"
+
+#: src/bin/main.c:488
+msgid ""
+"Split the terminal window. 'v' for vertical and 'h' for horizontal. Can be "
+"used multiple times. eg -S vhvv or --split hv More description available on "
+"the man page"
+msgstr ""
+"Opdel terminalvinduet. 'v' for lodret og 'h' og vandret. Kan bruges flere "
+"gange. F.eks. -S vhvv eller --split hv Der er mere beskrivelse på man-siden"
+
+#: src/bin/main.c:493
+msgid "Run the shell as a login shell"
+msgstr "Kør skallen som en loginskal"
+
+#: src/bin/main.c:495
+msgid "Set mute mode for video playback"
+msgstr "Indstil mutetilstand for videoafspilning"
+
+#: src/bin/main.c:497
+msgid "Set cursor blink mode"
+msgstr "Indstil markørens blinktilstand"
+
+#: src/bin/main.c:499
+msgid "Set visual bell mode"
+msgstr "Indstil visuel klokketilstand"
+
+#: src/bin/main.c:501
+msgid "Go into the fullscreen mode from the start"
+msgstr "Gå i fuldskærmstilstand fra starten"
+
+#: src/bin/main.c:503
+msgid "Start iconified"
+msgstr "Start som ikon"
+
+#: src/bin/main.c:505
+msgid "Start borderless"
+msgstr "Start uden kant"
+
+#: src/bin/main.c:507
+msgid "Start as a override-redirect window"
+msgstr "Start som et override-redirect-vindue"
+
+#: src/bin/main.c:509
+msgid "Start maximized"
+msgstr "Start maksimeret"
+
+#: src/bin/main.c:511
+msgid "Terminology is run without a window manager"
+msgstr "Terminology kører uden en vindueshåndtering"
+
+#: src/bin/main.c:513
+msgid "Do not exit when the command process exits"
+msgstr "Afslut ikke når kommandoprocessen afslutter"
+
+#: src/bin/main.c:515
+msgid "Force single executable if multi-instance is enabled"
+msgstr "Tving enkel eksekverbar hvis flere-instans er aktiveret"
+
+#: src/bin/main.c:517
+msgid "Set TERM to 'xterm-256color' instead of 'xterm'"
+msgstr "Indstil TERM til 'xterm-256color' i stedet for 'xterm'"
+
+#: src/bin/main.c:519
+msgid "Set scaling factor"
+msgstr "Indstil skaleringsfaktor"
+
+#: src/bin/main.c:521
+msgid "Highlight links"
+msgstr "Fremhæv links"
+
+#: src/bin/main.c:523
+msgid "Do not display wizard on start up"
+msgstr "Vis ikke assistent ved opstart"
+
+#: src/bin/main.c:549
+msgid "show program version"
+msgstr "vis programversion"
+
+#: src/bin/main.c:552
+msgid "show copyright"
+msgstr "vis ophavsret"
+
+#: src/bin/main.c:555
+msgid "show license"
+msgstr "vis licens"
+
+#: src/bin/main.c:558
+msgid "show this message"
+msgstr "vis denne meddelelse"
+
+#: src/bin/main.c:655
+msgid "invalid argument found for option -S/--split. See --help"
+msgstr "ugyldigt argument fundet for tilvalget -S/--split. Se --help"
+
+#: src/bin/main.c:909
+msgid "Could not initialize key bindings"
+msgstr "Kunne ikke initialisere tastebindinger"
+
+#: src/bin/main.c:925
+msgid "Could not parse command line options"
+msgstr "Kunne ikke fortolke kommandolinjetilvalg"
+
+#: src/bin/main.c:949
+#, c-format
+msgid "option %s requires an argument!"
+msgstr "tilvalget %s kræver et argument!"
+
+#: src/bin/main.c:950
+msgid "invalid options found. See --help"
+msgstr "ugyldige tilvalg fundet. Se --help"
+
+#: src/bin/media.c:1337 src/bin/termpty.c:646 src/bin/termpty.c:651
+#: src/bin/termpty.c:655
+#, c-format
+msgid "Function %s failed: %s"
+msgstr "Funktionen %s mislykkedes: %s"
+
+#: src/bin/media.c:1434
+msgid "Media visualizing is not supported"
+msgstr "Medievisualisering understøttes ikke"
+
+#: src/bin/options_background.c:136
+msgid "None"
+msgstr "Ingen"
+
+#: src/bin/options_background.c:468
+msgid "Source file is target file"
+msgstr "Kildefil er målfil"
+
+#: src/bin/options_background.c:481
+msgid "Picture imported"
+msgstr "Billede importeret"
+
+#: src/bin/options_background.c:486
+msgid "Failed"
+msgstr "Mislykkedes"
+
+#: src/bin/options_background.c:538 src/bin/options.c:221
+msgid "Background"
+msgstr "Baggrund"
+
+#: src/bin/options_background.c:554
+msgid "Translucent"
+msgstr "Gennemsigtig"
+
+#: src/bin/options_background.c:565
+msgid "Opacity:"
+msgstr ""
+
+#: src/bin/options_background.c:573 src/bin/options_background.c:574
+#, c-format
+msgid "%1.0f%%"
+msgstr "%1.0f%%"
+
+#: src/bin/options_background.c:592
+msgid "Select Path"
+msgstr "Vælg sti"
+
+#: src/bin/options_background.c:598
+msgid "System"
+msgstr "System"
+
+#: src/bin/options_background.c:601
+msgid "User"
+msgstr "Bruger"
+
+#: src/bin/options_background.c:604
+msgid "Other"
+msgstr "Anden"
+
+#: src/bin/options_background.c:646
+msgid "Click on a picture to use it as background"
+msgstr "Dobbeltklik på et billede for at bruge det som baggrund"
+
+#: src/bin/options_behavior.c:64
+#, c-format
+msgid "%'d lines"
+msgstr "%'d linjer"
+
+#: src/bin/options_behavior.c:80
+#, c-format
+msgid "Scrollback (current memory usage: %'.2f%cB):"
+msgstr "Tilbagerulning (nuværende hukommelsesforbrug: %'.2f%cB):"
+
+#: src/bin/options_behavior.c:218
+msgid "Default cursor:"
+msgstr "Standardmarkør:"
+
+#: src/bin/options_behavior.c:227
+msgid "Blinking Block"
+msgstr "Blinkende blok"
+
+#: src/bin/options_behavior.c:246
+msgid "Steady Block"
+msgstr "Fast blok"
+
+#: src/bin/options_behavior.c:266
+msgid "Blinking Underline"
+msgstr "Blinkende understregning"
+
+#: src/bin/options_behavior.c:286
+msgid "Steady Underline"
+msgstr "Fast understregning"
+
+#: src/bin/options_behavior.c:306
+msgid "Blinking Bar"
+msgstr "Blinkende linje"
+
+#: src/bin/options_behavior.c:326
+msgid "Steady Bar"
+msgstr "Fast linje"
+
+#: src/bin/options_behavior.c:366 src/bin/options.c:217
+msgid "Behavior"
+msgstr "Adfærd"
+
+#: src/bin/options_behavior.c:386
+msgid "Show tabs"
+msgstr "Vis faneblade"
+
+#: src/bin/options_behavior.c:389
+msgid "Scroll to bottom on new content"
+msgstr "Rul til bunden når der kommer nyt indhold"
+
+#: src/bin/options_behavior.c:390
+msgid "Scroll to bottom when a key is pressed"
+msgstr "Rul til bunden når der trykkes på en tast"
+
+#: src/bin/options_behavior.c:396
+msgid "React to key presses (typing sounds and animations)"
+msgstr ""
+
+#: src/bin/options_behavior.c:403
+msgid "Audio Support for key presses <failure>DISABLED</failure>!"
+msgstr "Lydunderstøttelse for tastetryk <failure>DEAKTIVERET</failure>!"
+
+#: src/bin/options_behavior.c:407
+msgid "Visual Bell"
+msgstr "Visuel klokke"
+
+#: src/bin/options_behavior.c:408
+msgid "Bell rings"
+msgstr "Klokke ringer"
+
+#: src/bin/options_behavior.c:409
+msgid "Urgent Bell"
+msgstr "Hasterklokke"
+
+#: src/bin/options_behavior.c:411
+msgid "Multiple instances, one process"
+msgstr "Flere instanser, én proces"
+
+#: src/bin/options_behavior.c:412
+msgid "Set TERM to xterm-256color"
+msgstr "Indstil TERM til xterm-256color"
+
+#: src/bin/options_behavior.c:413
+msgid "BackArrow sends Del (instead of BackSpace)"
+msgstr "Tilbage-pil sender Del (i stedet for BackSpace)"
+
+#: src/bin/options_behavior.c:414
+msgid "Start as login shell"
+msgstr "Start som loginskal"
+
+#: src/bin/options_behavior.c:415
+msgid "Open new terminals in current working directory"
+msgstr "Åbn nye terminaler i nuværende arbejdsmappe"
+
+#: src/bin/options_behavior.c:416
+msgid "Always show miniview"
+msgstr "Vis altid minivisning"
+
+#: src/bin/options_behavior.c:417
+msgid "Enable special Terminology escape codes"
+msgstr "Aktivér specielle Terminology-undvigekoder"
+
+#: src/bin/options_behavior.c:418
+msgid "Enable escape codes manipulating selections"
+msgstr ""
+
+#: src/bin/options_behavior.c:419
+#, fuzzy
+msgid "Always treat Emojis as double-width characters"
+msgstr "Behandl Emojis som tegn med dobbelt bredde"
+
+#: src/bin/options_behavior.c:420
+msgid ""
+"When grouping input, do it on all terminals and not just the visible ones"
+msgstr ""
+"Når input grupperes, så gør det på alle terminaler og ikke kun dem der er "
+"synlige"
+
+#: src/bin/options_behavior.c:427
+msgid "Always open at size:"
+msgstr "Åbn altid med størrelse:"
+
+#: src/bin/options_behavior.c:437
+msgid "Set Current:"
+msgstr "Indstil nuværende:"
+
+#: src/bin/options_behavior.c:448
+msgid "Width:"
+msgstr "Bredde:"
+
+#: src/bin/options_behavior.c:470
+msgid "Height:"
+msgstr "Højde:"
+
+#: src/bin/options_behavior.c:529
+msgid ""
+"Set the time of the animation that<br>takes places during tab switches,"
+"<br>be those done due to key bindings or <br>mouse wheel over the tabs panel"
+msgstr ""
+"Indstil animationens tid som<br>sker når der skiftes faneblad,<br>hvad enten "
+"det er med tastebindinger eller <br>når musehjul flyttes over "
+"fanebladspanelet"
+
+#: src/bin/options_behavior.c:534
+msgid "Tab zoom/switch animation time:"
+msgstr "Faneblades zoom/skift animationstid:"
+
+#: src/bin/options_behavior.c:542 src/bin/options_behavior.c:543
+#: src/bin/options_mouse.c:186 src/bin/options_mouse.c:187
+#, c-format
+msgid "%1.1f s"
+msgstr "%1.1f s"
+
+#: src/bin/options.c:189
+msgid "Options"
+msgstr "Valgmuligheder"
+
+#: src/bin/options.c:218 src/bin/options_mouse.c:147
+msgid "Mouse"
+msgstr "Mus"
+
+#: src/bin/options.c:219 src/bin/options_font.c:499
+msgid "Font"
+msgstr "Skrifttype"
+
+#: src/bin/options.c:220 src/bin/options_theme.c:168
+msgid "Theme"
+msgstr "Tema"
+
+#: src/bin/options.c:222
+msgid "Colors"
+msgstr "Farver"
+
+#: src/bin/options.c:223
+msgid "Keys"
+msgstr "Taster"
+
+#: src/bin/options.c:224 src/bin/options_elm.c:109
+msgid "Toolkit"
+msgstr "Værktøjskit"
+
+#: src/bin/options.c:235
+msgid "Temporary"
+msgstr "Midlertidig"
+
+#: src/bin/options_colors.c:99
+msgid "Open website"
+msgstr "Åbn websted"
+
+#: src/bin/options_colors.c:131
+#, c-format
+msgid "<b>Author: </b>%s<br/><b>Website: </b>%s<br/><b>License: </b>%s"
+msgstr "<b>Forfatter: </b>%s<br/><b>Websted: </b>%s<br/><b>Licens: </b>%s"
+
+#: src/bin/options_colors.c:226
+msgid "Color schemes"
+msgstr "Farvetemaer"
+
+#: src/bin/options_colors.c:265
+#, c-format
+msgid "Using theme <hilight>%s</hilight>"
+msgstr "Bruger temaet <hilight>%s</hilight>"
+
+#: src/bin/options_elm.c:122
+#, c-format
+msgid ""
+"<em>Terminology</em> uses the <hilight>elementary</hilight> toolkit.<br>The "
+"toolkit configuration settings can be accessed by running <keyword>%s</"
+"keyword>"
+msgstr ""
+"<em>Terminology</em> bruger <hilight>elementary</hilight>-værktøjskittet."
+"<br>Konfigurationsindstillingerne til værktøjskittet kan tilgås ved at køre "
+"<keyword>%s</keyword>"
+
+#: src/bin/options_elm.c:134
+#, c-format
+msgid "Launch %s"
+msgstr "Start %s"
+
+#: src/bin/options_elm.c:150 src/bin/win.c:383 src/bin/win.c:403
+msgid "Scale"
+msgstr "Skalering"
+
+#: src/bin/options_elm.c:172 src/bin/win.c:432
+msgid "Select preferred size so that this text is readable"
+msgstr "Vælg den foretrukne størrelse så teksten er læsbar"
+
+#: src/bin/options_elm.c:180
+msgid ""
+"The scale configuration can also be changed through <hilight>elementary</"
+"hilight>'s configuration panel"
+msgstr ""
+"Skaleringskonfigurationen kan også ændres gennem <hilight>elementarys</"
+"hilight> konfigurationspanel"
+
+#: src/bin/options_font.c:550
+msgid "Search font"
+msgstr "Søg efter skrifttype"
+
+#: src/bin/options_font.c:578
+msgid "Bitmap"
+msgstr "Bitmap"
+
+#: src/bin/options_font.c:619
+msgid "Standard"
+msgstr "Standard"
+
+#: src/bin/options_font.c:681
+msgid "Display bold and italic in the terminal"
+msgstr "Vis fed og kursiv i terminalen"
+
+#: src/bin/options_keys.c:66
+msgid "Ctrl+"
+msgstr "Ctrl+"
+
+#: src/bin/options_keys.c:67
+msgid "Alt+"
+msgstr "Alt+"
+
+#: src/bin/options_keys.c:68
+msgid "Shift+"
+msgstr "Skift+"
+
+#: src/bin/options_keys.c:69
+msgid "Win+"
+msgstr "Win+"
+
+#: src/bin/options_keys.c:70
+msgid "Meta+"
+msgstr "Meta+"
+
+#: src/bin/options_keys.c:71
+msgid "Hyper+"
+msgstr "Hyper+"
+
+#: src/bin/options_keys.c:82
+msgid "Delete"
+msgstr "Slet"
+
+#: src/bin/options_keys.c:270
+msgid "Please press key sequence"
+msgstr "Tryk venligst tastesekvens"
+
+#: src/bin/options_keys.c:386
+msgid "Key Bindings"
+msgstr "Tastebindinger"
+
+#: src/bin/options_keys.c:458
+msgid "Reset bindings"
+msgstr "Nulstil bindinger"
+
+#: src/bin/options_mouse.c:167
+msgid "Focus split under the Mouse"
+msgstr "Fokus opdeler under musen"
+
+#: src/bin/options_mouse.c:168
+msgid "Focus-related visuals"
+msgstr "Fokus-relaterede visuelle"
+
+#: src/bin/options_mouse.c:174
+msgid "Auto hide the mouse cursor when idle:"
+msgstr "Skjul automatisk musemarkøren når inaktiv:"
+
+#: src/bin/options_mouse.c:204
+msgid "Active Links:"
+msgstr "Aktive links:"
+
+#: src/bin/options_mouse.c:208
+msgid "On emails"
+msgstr "Ved e-mails"
+
+#: src/bin/options_mouse.c:209
+msgid "On file paths"
+msgstr "Ved filstier"
+
+#: src/bin/options_mouse.c:210
+msgid "On URLs"
+msgstr "Ved URL'er"
+
+#: src/bin/options_mouse.c:211
+msgid "On colors"
+msgstr "Ved farver"
+
+#: src/bin/options_mouse.c:212
+msgid "Based on escape codes"
+msgstr "Baseret på undvigekoder"
+
+#: src/bin/options_mouse.c:213
+msgid "Gravatar integration"
+msgstr "Gravatar-integration"
+
+#: src/bin/options_mouse.c:215
+msgid "Drag & drop links"
+msgstr "Træk-og-slip links"
+
+#: src/bin/options_mouse.c:221
+msgid "Inline if possible"
+msgstr "Inline hvis det er muligt"
+
+#: src/bin/options_mouse.c:265
+msgid "E-mail:"
+msgstr "E-mail:"
+
+#: src/bin/options_mouse.c:269
+msgid "URL (Images):"
+msgstr "URL (billeder):"
+
+#: src/bin/options_mouse.c:270
+msgid "URL (Video):"
+msgstr "URL (video):"
+
+#: src/bin/options_mouse.c:271
+msgid "URL (All):"
+msgstr "URL (alle):"
+
+#: src/bin/options_mouse.c:274
+msgid "Local (Images):"
+msgstr "Lokale (billeder):"
+
+#: src/bin/options_mouse.c:275
+msgid "Local (Video):"
+msgstr "Lokale (video):"
+
+#: src/bin/options_mouse.c:276
+msgid "Local (All):"
+msgstr "Lokale (alle):"
+
+#: src/bin/options_theme.c:187
+#, c-format
+msgid "Using colorscheme <hilight>%s</hilight>"
+msgstr "Bruger farvetemaet <hilight>%s</hilight>"
+
+#: src/bin/termcmd.c:84
+#, c-format
+msgid "Unknown font command: %s"
+msgstr "Ukendt skrifttypekommando: %s"
+
+#: src/bin/termcmd.c:118
+#, c-format
+msgid "Unknown grid size command: %s"
+msgstr "Ukendt gitterstørrelsekommando: %s"
+
+#: src/bin/termcmd.c:146
+#, c-format
+msgid "Background file could not be read: %s"
+msgstr "Baggrundsfil kunne ikke læses: %s"
+
+#: src/bin/termcmd.c:175
+#, c-format
+msgid "Unknown command: %s"
+msgstr "Ukendt kommando: %s"
+
+#: src/bin/termio.c:467
+#, c-format
+msgid "Could not get working directory of pid %i: %s"
+msgstr "Kunne ikke hente arbejdsmappe af pid %i: %s"
+
+#: src/bin/termio.c:482
+#, c-format
+msgid "Could not load working directory %s: %s"
+msgstr "Kunne ikke indlæse arbejdsmappe %s: %s"
+
+#: src/bin/termio.c:1247
+#, c-format
+msgid "unsupported selection format '%s'"
+msgstr "ikke-understøttet markeringsformat '%s'"
+
+#: src/bin/termio.c:1407
+msgid "Preview"
+msgstr "Forhåndsvis"
+
+#: src/bin/termio.c:1417
+msgid "Copy relative path"
+msgstr "Kopiér relativ sti"
+
+#: src/bin/termio.c:1419
+msgid "Copy full path"
+msgstr "Kopiér fuld sti"
+
+#: src/bin/termio.c:2836
+msgid "Open as URL"
+msgstr "Åbn som URL"
+
+#: src/bin/termio.c:4279
+msgid "Could not allocate termpty"
+msgstr "Kunne ikke allokere termpty"
+
+#: src/bin/termpty.c:99 src/bin/termpty.c:141 src/bin/termpty.c:188
+#, c-format
+msgid "memerr: %s"
+msgstr "memerr: %s"
+
+#: src/bin/termpty.c:225
+#, c-format
+msgid "Size set ioctl failed: %s"
+msgstr "Størrelse indstil ioctl mislykkedes: %s"
+
+#: src/bin/termpty.c:361
+#, c-format
+msgid "Could not write to file descriptor %d: %s"
+msgstr "Kunne ikke skrive til fildeskriptor %d: %s"
+
+#: src/bin/termpty.c:615
+#, c-format
+msgid "Could not find shell, falling back to %s"
+msgstr "Kunne ikke finde skal, falder tilbage til %s"
+
+#: src/bin/termpty.c:662
+#, c-format
+msgid "open() of pty '%s' failed: %s"
+msgstr "open() af pty '%s' mislykkedes: %s"
+
+#: src/bin/termpty.c:669 src/bin/termpty.c:675
+#, c-format
+msgid "fcntl() on pty '%s' failed: %s"
+msgstr "fcntl() på pty '%s' mislykkedes: %s"
+
+#: src/bin/termpty.c:684
+#, c-format
+msgid "ioctl() on pty '%s' failed: %s"
+msgstr "ioctl() på pty '%s' mislykkedes: %s"
+
+#: src/bin/termpty.c:725 src/bin/termpty.c:733 src/bin/termpty.c:742
+#, c-format
+msgid "Could not change current directory to '%s': %s"
+msgstr "Kunne ikke skifte nuværende mappe til '%s': %s"
+
+#: src/bin/theme.c:91
+#, c-format
+msgid "Could not load any theme for group=%s: %s"
+msgstr "Kunne ikke indlæse noget tema for gruppe=%s: %s"
+
+#: src/bin/win.c:424
+msgid "Done"
+msgstr "Færdig"
+
+#: src/bin/win.c:440
+msgid ""
+"The scale configuration can be changed in the Settings (right click on the "
+"terminal) →  Toolkit, or by starting the command <keyword>elementary_config</"
+"keyword>"
+msgstr ""
+"Skaleringskonfigurationen kan ændres i Indstillinger (højreklik på "
+"terminalen) →  Værktøjskit, eller ved at starte kommandoen "
+"<keyword>elementary_config</keyword>"
+
+#: src/bin/win.c:2334
+msgid "Ecore IMF failed"
+msgstr "Ecore-IMF mislykkedes"
+
+#: src/bin/win.c:6209
+msgid "Ok"
+msgstr "OK"
+
+#: src/bin/win.c:6214
+msgid "Cancel"
+msgstr "Annuller"
+
+#: src/bin/win.c:7413
+msgid "Couldn't find terminology theme! Forgot 'ninja install'?"
+msgstr "Kunne ikke finde terminology-tema! Glemte du 'ninja install'?"
+
+#~ msgid "Shine:"
+#~ msgstr "Skin:"
+
+#~ msgid "React to key presses"
+#~ msgstr "Reager på tastetryk"
+
+#~ msgid "Become a borderless managed window"
+#~ msgstr "Bliv et vindue uden kanter"
+
+#~ msgid "Become maximized from the start"
+#~ msgstr "Bliv maksimeret fra starten"
+
+#~ msgid "Go into an iconic state from the start"
+#~ msgstr "Gå i ikontilstand fra starten"
+
+#~ msgid "Default"
+#~ msgstr "Standard"
+
+#~ msgid "Black"
+#~ msgstr "Sort"
+
+#~ msgid "Red"
+#~ msgstr "Rød"
+
+#~ msgid "Green"
+#~ msgstr "Grøn"
+
+#~ msgid "Yellow"
+#~ msgstr "Gul"
+
+#~ msgid "Blue"
+#~ msgstr "Blå"
+
+#~ msgid "Magenta"
+#~ msgstr "Magenta"
+
+#~ msgid "Cyan"
+#~ msgstr "Cyan"
+
+#~ msgid "White"
+#~ msgstr "Hvid"
+
+#~ msgid "Invisible"
+#~ msgstr "Usynlig"
+
+#~ msgid "Inverse"
+#~ msgstr "Omvend"
+
+#~ msgid "Inverse Background"
+#~ msgstr "Omvend baggrund"
+
+#~ msgid "Normal"
+#~ msgstr "Normal"
+
+#~ msgid "Bright/Bold"
+#~ msgstr "Lys/fed"
+
+#~ msgid "Intense"
+#~ msgstr "Intens"
+
+#~ msgid "Intense Bright/Bold"
+#~ msgstr "Intens lys/fed"
+
+#~ msgid "Reset all the colors"
+#~ msgstr "Nulstil alle farverne"
+
+#~ msgid ""
+#~ "Could not find theme: file=%s group=%s error='%s', trying default theme"
+#~ msgstr ""
+#~ "Kunne ikke finde tema: fil=%s gruppe=%s fejl='%s', prøver standardtemaet"
+
+#~ msgid "Could not load default theme for group=%s: %s"
+#~ msgstr "Kunne ikke indlæse standardtema for gruppe=%s: %s"
+
+#~ msgid "Helpers"
+#~ msgstr "Hjælpere"
+
+#~ msgid "Set emotion module to use."
+#~ msgstr "Sæt emotion-modul som skal bruges."
+
+#~ msgid "Could not Initialize the emotion module '%s'"
+#~ msgstr "Kunne ikke initialisere emotion-modulet '%s'"
+
+#~ msgid "Video"
+#~ msgstr "Video"
+
+#~ msgid "Audio muted"
+#~ msgstr "Lyd på mute"
+
+#~ msgid "Audio visualized"
+#~ msgstr "Visualiseret lyd"
+
+#~ msgid "Video Engine:"
+#~ msgstr "Video-motor:"
+
+#~ msgid "Automatic"
+#~ msgstr "Automatisk"
+
+#~ msgid "Cursor blinking"
+#~ msgstr "Markørblink"
+
+#~ msgid "Scrollback:"
+#~ msgstr "Tilbagerulning:"
+
+#~ msgid "Wallpaper"
+#~ msgstr "Tapet"
+
+#~ msgid "Inverse Base"
+#~ msgstr "Omvend base"
+
+#~ msgid "Use"
+#~ msgstr "Brug"
+
+#~ msgid "Reset"
+#~ msgstr "Nulstil"

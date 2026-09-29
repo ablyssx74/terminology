@@ -1,0 +1,26 @@
+option('edje-cc',
+       type: 'string',
+       description: 'A path to a edje_cc. Defaults to system\'s edje_cc')
+option('eet',
+       type: 'string',
+       description: 'A path to a eet. Defaults to system\'s eet')
+option('fuzzing',
+       type: 'boolean',
+       value: false,
+       description: 'Enable fuzzing on terminology. Binaries are not suited for production. (default=false)')
+option('tests',
+       type: 'boolean',
+       value: false,
+       description: 'Enable generating tytest, used to run tests. (default=false)')
+option('benchmarks',
+       type: 'boolean',
+       value: false,
+       description: 'Enable generating tybench, used to benchmark the pty intake path. (default=false)')
+option('nls',
+       type: 'boolean',
+       value: true,
+       description: 'enable localization. Requires libintl. (default=true)')
+option('terminfo',
+       type: 'feature',
+       value: 'auto',
+       description: 'Compile and install the terminology terminfo entry with tic. (default=auto)')

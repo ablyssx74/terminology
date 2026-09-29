@@ -1,0 +1,2941 @@
+#include "private.h"
+#include <Elementary.h>
+#include <Ecore_Input.h>
+#include <Ecore_IMF.h>
+#include <Ecore_IMF_Evas.h>
+#include "termpty.h"
+#include "termptyesc.h"
+#include "termptyops.h"
+#include "backlog.h"
+#include "utf8.h"
+#include "simd/simd.h"
+#include "keyin.h"
+#if !defined(BINARY_TYFUZZ) && !defined(BINARY_TYTEST)
+# include "win.h"
+#endif
+#include "termio.h"
+#include <sys/types.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <termios.h>
+#if defined (__sun) || defined (__sun__)
+# include <stropts.h>
+#endif
+#include <assert.h>
+
+/* specific log domain to help debug only terminal code parser */
+int _termpty_log_dom = -1;
+
+#undef CRITICAL
+#undef ERR
+#undef WRN
+#undef INF
+#undef DBG
+
+#define CRITICAL(...) EINA_LOG_DOM_CRIT(_termpty_log_dom, __VA_ARGS__)
+#define ERR(...)      EINA_LOG_DOM_ERR(_termpty_log_dom, __VA_ARGS__)
+#define WRN(...)      EINA_LOG_DOM_WARN(_termpty_log_dom, __VA_ARGS__)
+#define INF(...)      EINA_LOG_DOM_INFO(_termpty_log_dom, __VA_ARGS__)
+#define DBG(...)      TERMPTY_DBG(__VA_ARGS__)
+
+void
+termpty_init(void)
+{
+   simd_init();
+
+   if (_termpty_log_dom >= 0) return;
+
+   _termpty_log_dom = eina_log_domain_register("termpty", NULL);
+   if (_termpty_log_dom < 0)
+     EINA_LOG_CRIT("Could not create logging domain '%s'", "termpty");
+}
+
+void
+termpty_shutdown(void)
+{
+   if (_termpty_log_dom < 0) return;
+   eina_log_domain_unregister(_termpty_log_dom);
+   _termpty_log_dom = -1;
+}
+
+
+Eina_Bool
+termpty_can_handle_key(const Termpty *ty,
+                       const Keys_Handler *khdl,
+                       const Evas_Event_Key_Down *ev)
+{
+   // if term app asked for kbd lock - don't handle here
+   if (ty->termstate.kbd_lock)
+     return EINA_FALSE;
+   // if app asked us to not do autorepeat - ignore press if is it is the same
+   // timestamp as last one
+   if ((ty->termstate.no_autorepeat) &&
+       (ev->timestamp == khdl->last_keyup))
+     return EINA_FALSE;
+   return EINA_TRUE;
+}
+
+
+
+
+void
+termpty_handle_buf(Termpty *ty, const Eina_Unicode *codepoints, int len)
+{
+   Eina_Unicode *c, *ce, *c2, *b, *d;
+   int n, bytes;
+
+   c = (Eina_Unicode *)codepoints;
+   ce = &(c[len]);
+
+   if (ty->buf)
+     {
+        bytes = (ty->buflen + len + 1) * sizeof(int);
+        b = realloc(ty->buf, bytes);
+        if (!b)
+          {
+             ERR(_("memerr: %s"), strerror(errno));
+             return;
+          }
+        DBG("realloc add %i + %i", (int)(ty->buflen * sizeof(int)), (int)(len * sizeof(int)));
+        if (!ty->buf_have_zero)
+          {
+             d = &(b[ty->buflen]);
+             ce = (Eina_Unicode *)codepoints + len;
+             for (c = (Eina_Unicode *)codepoints; c < ce; c++, d++)
+               {
+                  *d = *c;
+                  if (*c == 0x0)
+                    {
+                       ty->buf_have_zero = EINA_TRUE;
+                       break;
+                    }
+               }
+             for (; c < ce; c++, d++) *d = *c;
+          }
+        else
+          {
+             bytes = len * sizeof(Eina_Unicode);
+             memcpy(&(b[ty->buflen]), codepoints, bytes);
+          }
+        ty->buf = b;
+        ty->buflen += len;
+        ty->buf[ty->buflen] = 0;
+        c = ty->buf;
+        ce = c + ty->buflen;
+        while (c < ce)
+          {
+             n = termpty_handle_seq(ty, c, ce);
+             if (n == 0)
+               {
+                  Eina_Unicode *tmp = ty->buf;
+                  ty->buf = NULL;
+                  ty->buflen = 0;
+                  bytes = ((char *)ce - (char *)c) + sizeof(Eina_Unicode);
+                  DBG("malloc till %i", (int)(bytes - sizeof(Eina_Unicode)));
+                  ty->buf = malloc(bytes);
+                  if (!ty->buf)
+                    {
+                       ERR(_("memerr: %s"), strerror(errno));
+                       return;
+                    }
+                  ty->buf_have_zero = EINA_FALSE;
+                  for (d = ty->buf, c2 = c; c2 < ce; c2++, d++)
+                    {
+                       *d = *c2;
+                       if (*c2 == 0x0)
+                         {
+                            ty->buf_have_zero = EINA_TRUE;
+                            break;
+                         }
+                    }
+                  for (; c2 < ce; c2++, d++) *d = *c2;
+                  bytes = (char *)ce - (char *)c;
+                  ty->buflen = bytes / sizeof(Eina_Unicode);
+                  ty->buf[ty->buflen] = 0;
+                  free(tmp);
+                  break;
+               }
+             c += n;
+          }
+        if (c == ce)
+          {
+             if (ty->buf)
+               {
+                  ty->buf_have_zero = EINA_FALSE;
+                  free(ty->buf);
+                  ty->buf = NULL;
+               }
+             ty->buflen = 0;
+          }
+     }
+   else
+     {
+        ty->buf_have_zero = EINA_TRUE;
+        while (c < ce)
+          {
+             n = termpty_handle_seq(ty, c, ce);
+             if (n == 0)
+               {
+                  bytes = ((char *)ce - (char *)c) + sizeof(Eina_Unicode);
+                  ty->buf_have_zero = EINA_FALSE;
+                  ty->buf = malloc(bytes);
+                  DBG("malloc %i", (int)(bytes - sizeof(Eina_Unicode)));
+                  if (!ty->buf)
+                    {
+                       ERR(_("memerr: %s"), strerror(errno));
+                    }
+                  else
+                    {
+                       ty->buf_have_zero = EINA_FALSE;
+                       for (d = ty->buf, c2 = c; c2 < ce; c2++, d++)
+                         {
+                            *d = *c2;
+                            if (*c2 == 0x0)
+                              {
+                                 ty->buf_have_zero = EINA_TRUE;
+                                 break;
+                              }
+                         }
+                       for (; c2 < ce; c2++, d++) *d = *c2;
+                       bytes = (char *)ce - (char *)c;
+                       ty->buflen = bytes / sizeof(Eina_Unicode);
+                       ty->buf[ty->buflen] = 0;
+                    }
+                  break;
+               }
+             c += n;
+          }
+     }
+}
+
+static void
+_pty_size(Termpty *ty)
+{
+   struct winsize sz;
+
+   sz.ws_col = ty->w;
+   sz.ws_row = ty->h;
+   sz.ws_xpixel = 0;
+   sz.ws_ypixel = 0;
+   if (ty->fd >= 0)
+     if (ioctl(ty->fd, TIOCSWINSZ, &sz) < 0)
+       ERR(_("Size set ioctl failed: %s"), strerror(errno));
+}
+
+static Eina_Bool
+_handle_read(Termpty *ty, Eina_Bool false_on_empty)
+{
+   int len, reads;
+
+   // read up to 64 * 4096 bytes
+   for (reads = 0; reads < 64; reads++)
+     {
+        Eina_Unicode codepoint[4097];
+        char buf[4097];
+        char *rbuf = buf;
+        int i, j, consumed;
+        len = sizeof(buf) - 1;
+
+        for (i = 0; i < (int)sizeof(ty->oldbuf) && ty->oldbuf[i] & 0x80; i++)
+          {
+             *rbuf = ty->oldbuf[i];
+             rbuf++;
+             len--;
+          }
+        errno = 0;
+        len = read(ty->fd, rbuf, len);
+        if ((len < 0 && !(errno == EAGAIN || errno == EINTR)) ||
+            (len == 0 && errno != 0))
+          {
+             /* Do not print error if the child has exited */
+             if (ty->pid != -1)
+               {
+                  ERR("error while reading from tty slave fd: %s", strerror(errno));
+               }
+             close(ty->fd);
+             ty->fd = -1;
+             if (ty->hand_fd)
+               ecore_main_fd_handler_del(ty->hand_fd);
+             ty->hand_fd = NULL;
+             return ECORE_CALLBACK_CANCEL;
+          }
+        if (len <= 0) break;
+
+        for (i = 0; i < (int)sizeof(ty->oldbuf); i++)
+          ty->oldbuf[i] = 0;
+
+        len += rbuf - buf;
+
+        /*
+        printf(" I: ");
+        int jj;
+        for (jj = 0; jj < len; jj++)
+          {
+             if ((buf[jj] < ' ') || (buf[jj] >= 0x7f))
+               printf("\033[33m%02x\033[0m", (unsigned char)buf[jj]);
+             else
+               printf("%c", buf[jj]);
+          }
+        printf("\n");
+        */
+        buf[len] = 0;
+        // convert UTF8 to codepoint integers
+        j = utf8_to_codepoints(buf, len, codepoint, &consumed);
+        /* Retain a multibyte sequence cut in half by the read boundary. */
+        for (i = 0; (i < len - consumed) && (i < (int)sizeof(ty->oldbuf)); i++)
+          ty->oldbuf[i] = buf[consumed + i];
+        codepoint[j] = 0;
+//        DBG("---------------- handle buf %i", j);
+        termpty_handle_buf(ty, codepoint, j);
+     }
+   if (ty->cb.change.func)
+     ty->cb.change.func(ty->cb.change.data);
+#if defined(BINARY_TYFUZZ) || defined(BINARY_TYTEST)
+   if (len <= 0)
+     {
+        ty->exit_code = 0;
+        ty->pid = -1;
+
+        if (ty->hand_exe_exit)
+          ecore_event_handler_del(ty->hand_exe_exit);
+        ty->hand_exe_exit = NULL;
+        if (ty->hand_fd)
+          ecore_main_fd_handler_del(ty->hand_fd);
+        ty->hand_fd = NULL;
+        ty->fd = -1;
+        ty->slavefd = -1;
+        if (ty->cb.exited.func)
+          ty->cb.exited.func(ty->cb.exited.data);
+        return ECORE_CALLBACK_CANCEL;
+     }
+#endif
+   if ((false_on_empty) && (len <= 0))
+     return ECORE_CALLBACK_CANCEL;
+
+   return ECORE_CALLBACK_RENEW;
+}
+
+static Eina_Bool
+_handle_write(Termpty *ty)
+{
+   struct ty_sb *sb = &ty->write_buffer;
+   ssize_t len;
+
+   if (!sb->len)
+     return ECORE_CALLBACK_RENEW;
+
+   len = write(ty->fd, sb->buf, sb->len);
+   if (len < 0 && (errno != EINTR && errno != EAGAIN))
+     {
+        ERR(_("Could not write to file descriptor %d: %s"),
+            ty->fd, strerror(errno));
+        return ECORE_CALLBACK_CANCEL;
+     }
+   ty_sb_lskip(sb, len);
+
+   if (!sb->len && ty->hand_fd)
+     ecore_main_fd_handler_active_set(ty->hand_fd,
+                                      ECORE_FD_ERROR |
+                                      ECORE_FD_READ);
+
+   return ECORE_CALLBACK_RENEW;
+}
+
+static Eina_Bool
+_fd_do(Termpty *ty, Ecore_Fd_Handler *fd_handler, Eina_Bool false_on_empty)
+{
+   if (ecore_main_fd_handler_active_get(fd_handler, ECORE_FD_ERROR))
+     {
+        DBG("error while doing I/O on tty slave fd");
+        ty->hand_fd = NULL;
+        return ECORE_CALLBACK_CANCEL;
+     }
+   if (ty->fd == -1)
+     {
+        ty->hand_fd = NULL;
+        return ECORE_CALLBACK_CANCEL;
+     }
+
+   // it seems one can not read from this side of the pair if the other side
+   // is closed
+   if (ty->pid == -1)
+     return ECORE_CALLBACK_CANCEL;
+
+   if (ecore_main_fd_handler_active_get(fd_handler, ECORE_FD_READ))
+     {
+        if (!_handle_read(ty, false_on_empty))
+          return ECORE_CALLBACK_CANCEL;
+     }
+
+   if (ecore_main_fd_handler_active_get(fd_handler, ECORE_FD_WRITE))
+     {
+        if (!_handle_write(ty))
+          return ECORE_CALLBACK_CANCEL;
+     }
+
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+static Eina_Bool
+_cb_fd(void *data, Ecore_Fd_Handler *fd_handler)
+{
+   return _fd_do(data, fd_handler, EINA_FALSE);
+}
+
+static Eina_Bool
+_cb_exe_exit(void *data,
+             int _type EINA_UNUSED,
+             void *event)
+{
+   Ecore_Exe_Event_Del *ev = event;
+   Termpty *ty = data;
+   Eina_Bool res;
+
+   DBG("got exit (code:%d) on pid %d (ty->pid=%d)", ev->exit_code, ev->pid, ty->pid);
+   if (ev->pid != ty->pid)
+     return ECORE_CALLBACK_PASS_ON;
+   ty->exit_code = ev->exit_code;
+
+   ty->pid = -1;
+
+   if (ty->hand_exe_exit)
+     ecore_event_handler_del(ty->hand_exe_exit);
+   ty->hand_exe_exit = NULL;
+
+   /* Read everything till the end */
+   res = ECORE_CALLBACK_PASS_ON;
+   while (ty->hand_fd && res != ECORE_CALLBACK_CANCEL)
+     {
+        res = _fd_do(ty, ty->hand_fd, EINA_TRUE);
+     }
+
+   if (ty->hand_fd)
+     ecore_main_fd_handler_del(ty->hand_fd);
+   ty->hand_fd = NULL;
+   if (ty->fd >= 0)
+     close(ty->fd);
+   ty->fd = -1;
+   if (ty->slavefd >= 0)
+     close(ty->slavefd);
+   ty->slavefd = -1;
+
+   if (ty->cb.exited.func)
+     ty->cb.exited.func(ty->cb.exited.data);
+
+   return ECORE_CALLBACK_PASS_ON;
+}
+
+
+static void
+_limit_coord(Termpty *ty)
+{
+   TERMPTY_RESTRICT_FIELD(ty->termstate.had_cr_x, 0, ty->w);
+   TERMPTY_RESTRICT_FIELD(ty->termstate.had_cr_y, 0, ty->h);
+
+   TERMPTY_RESTRICT_FIELD(ty->cursor_state.cx, 0, ty->w);
+   TERMPTY_RESTRICT_FIELD(ty->cursor_state.cy, 0, ty->h);
+
+   TERMPTY_RESTRICT_FIELD(ty->cursor_save[0].cx, 0, ty->w);
+   TERMPTY_RESTRICT_FIELD(ty->cursor_save[0].cy, 0, ty->h);
+   TERMPTY_RESTRICT_FIELD(ty->cursor_save[1].cx, 0, ty->w);
+   TERMPTY_RESTRICT_FIELD(ty->cursor_save[1].cy, 0, ty->h);
+}
+
+void
+termpty_resize_tabs(Termpty *ty, int old_w, int new_w)
+{
+    unsigned int *new_tabs;
+    int i;
+    size_t nb_elems;
+
+    if ((new_w == old_w) && ty->tabs) return;
+
+    nb_elems = ROUND_UP(new_w, 8);
+    new_tabs = calloc(nb_elems, sizeof(unsigned int));
+    if (!new_tabs) return;
+
+    if (ty->tabs)
+      {
+         size_t n = old_w;
+         if (nb_elems < n) n = nb_elems;
+         if (n > 0) memcpy(new_tabs, ty->tabs, n * sizeof(unsigned int));
+         free(ty->tabs);
+      }
+
+    ty->tabs = new_tabs;
+    for (i = ROUND_UP(ty->w, TAB_WIDTH); i < new_w; i += TAB_WIDTH)
+      {
+         TAB_SET(ty, i);
+      }
+}
+
+static Eina_Bool
+_is_shell_valid(const char *cmd)
+{
+    struct stat st;
+
+   if (!cmd)
+     return EINA_FALSE;
+   if (cmd[0] == '\0')
+     return EINA_FALSE;
+   if (cmd[0] != '/')
+     {
+        ERR("shell command '%s' is not an absolute path", cmd);
+        return EINA_FALSE;
+     }
+   if (stat(cmd, &st) != 0)
+     {
+        ERR("shell command '%s' can not be stat(): %s", cmd, strerror(errno));
+        return EINA_FALSE;
+     }
+   if ((st.st_mode & S_IFMT) != S_IFREG)
+     {
+        ERR("shell command '%s' is not a regular file", cmd);
+        return EINA_FALSE;
+     }
+   if ((st.st_mode & S_IXOTH) == 0)
+     {
+        ERR("shell command '%s' is not executable", cmd);
+        return EINA_FALSE;
+     }
+   return EINA_TRUE;
+}
+
+Termpty *
+termpty_new(const char *cmd, Eina_Bool login_shell, const char *cd,
+            int w, int h, Config *config, const char *title,
+            Ecore_Window window_id)
+{
+   Termpty *ty;
+   const char *pty;
+   int mode;
+   struct termios t;
+   Eina_Bool needs_shell;
+   const char *shell = NULL;
+   const char *args[4] = {NULL, NULL, NULL, NULL};
+   const char *arg0;
+
+   ty = calloc(1, sizeof(Termpty));
+   if (!ty) return NULL;
+   ty->config = config;
+   ty->w = w;
+   ty->h = h;
+   ty->backsize = config->scrollback;
+
+   ty->screen = calloc(1, sizeof(Termcell) * ty->w * ty->h);
+   if (!ty->screen)
+     {
+        ERR("Allocation of term %s %ix%i failed: %s",
+            "screen", ty->w, ty->h, strerror(errno));
+        goto err;
+     }
+   ty->screen2 = calloc(1, sizeof(Termcell) * ty->w * ty->h);
+   if (!ty->screen2)
+     {
+        ERR("Allocation of term %s %ix%i failed: %s",
+            "screen2", ty->w, ty->h, strerror(errno));
+        goto err;
+     }
+
+   ty->hl.bitmap = calloc(1, HL_LINKS_MAX / 8); /* bit map for 1 << 16 elements */
+   if (!ty->hl.bitmap)
+     {
+        ERR("Allocation of %d bytes failed: %s",
+            HL_LINKS_MAX / 8, strerror(errno));
+        goto err;
+     }
+   /* Mark id 0 as set */
+   ty->hl.bitmap[0] = 1;
+
+   termpty_resize_tabs(ty, 0, w);
+
+   termpty_reset_state(ty);
+
+   ty->circular_offset = 0;
+
+#if defined(BINARY_TYFUZZ) || defined(BINARY_TYTEST)
+   ty->fd = STDIN_FILENO;
+   ty->hand_fd = ecore_main_fd_handler_add(ty->fd,
+                                           ECORE_FD_READ | ECORE_FD_ERROR,
+                                           _cb_fd, ty,
+                                           NULL, NULL);
+   _pty_size(ty);
+   termpty_save_register(ty);
+   return ty;
+#endif
+
+   needs_shell = ((!cmd) ||
+                  (strpbrk(cmd, " |&;<>()$`\\\"'*?#") != NULL));
+   DBG("cmd='%s' needs_shell=%u", cmd ? cmd : "", needs_shell);
+
+   if (needs_shell)
+     {
+        shell = getenv("SHELL");
+        if (!_is_shell_valid(shell))
+          shell = NULL;
+        if (!shell)
+          {
+             uid_t uid = getuid();
+             struct passwd *pw = getpwuid(uid);
+             if (pw) shell = pw->pw_shell;
+          }
+        if (!shell)
+          {
+             WRN(_("Could not find shell, falling back to %s"), "/bin/sh");
+             shell = "/bin/sh";
+          }
+     }
+
+   if (!needs_shell)
+     args[0] = cmd;
+   else
+     {
+        args[0] = shell;
+        if (cmd)
+          {
+             args[1] = "-c";
+             args[2] = cmd;
+          }
+     }
+   arg0 = strrchr(args[0], '/');
+   if (!arg0) arg0 = args[0];
+   else arg0++;
+
+   if (title)
+     {
+        ty->prop.title = eina_stringshare_add(title);
+        ty->prop.user_title = eina_stringshare_add(title);
+     }
+   else
+     ty->prop.title = eina_stringshare_add(arg0);
+
+   ty->fd = posix_openpt(O_RDWR | O_NOCTTY);
+   if (ty->fd < 0)
+     {
+        ERR(_("Function %s failed: %s"), "posix_openpt()", strerror(errno));
+        goto err;
+     }
+   if (grantpt(ty->fd) != 0)
+     {
+        WRN(_("Function %s failed: %s"), "grantpt()",  strerror(errno));
+     }
+   if (unlockpt(ty->fd) != 0)
+     {
+        ERR(_("Function %s failed: %s"), "unlockpt()", strerror(errno));
+        goto err;
+     }
+   pty = ptsname(ty->fd);
+   ty->slavefd = open(pty, O_RDWR | O_NOCTTY);
+   if (ty->slavefd < 0)
+     {
+        ERR(_("open() of pty '%s' failed: %s"), pty, strerror(errno));
+        goto err;
+     }
+
+   mode = fcntl(ty->fd, F_GETFL, 0);
+   if (mode < 0)
+     {
+        ERR(_("fcntl() on pty '%s' failed: %s"), pty, strerror(errno));
+        goto err;
+     }
+   if (!(mode & O_NDELAY))
+     if (fcntl(ty->fd, F_SETFL, mode | O_NDELAY))
+       {
+          ERR(_("fcntl() on pty '%s' failed: %s"), pty, strerror(errno));
+          goto err;
+       }
+
+#if defined (__sun) || defined (__sun__)
+   if (ioctl(ty->slavefd, I_PUSH, "ptem") < 0
+       || ioctl(ty->slavefd, I_PUSH, "ldterm") < 0
+       || ioctl(ty->slavefd, I_PUSH, "ttcompat") < 0)
+     {
+        ERR(_("ioctl() on pty '%s' failed: %s"), pty, strerror(errno));
+        goto err;
+     }
+# endif
+
+   if (tcgetattr(ty->slavefd, &t) < 0)
+     {
+        ERR("unable to tcgetattr: %s", strerror(errno));
+        goto err;
+     }
+   t.c_cc[VERASE] =  (config->erase_is_del) ? 0x7f : 0x8;
+#ifdef IUTF8
+   t.c_iflag |= IUTF8;
+#endif
+   if (tcsetattr(ty->slavefd, TCSANOW, &t) < 0)
+     {
+        ERR("unable to tcsetattr: %s", strerror(errno));
+        goto err;
+     }
+
+   ty->hand_exe_exit = ecore_event_handler_add(ECORE_EXE_EVENT_DEL,
+                                               _cb_exe_exit, ty);
+   if (!ty->hand_exe_exit)
+     {
+        ERR("event handler add failed");
+        goto err;
+     }
+
+   ty->pid = fork();
+   if (ty->pid < 0)
+     {
+        ERR("unable to fork: %s", strerror(errno));
+        goto err;
+     }
+   if (!ty->pid)
+     {
+        if (cd)
+          {
+             int ret = chdir(cd);
+             if (ret != 0)
+               {
+                  ERR(_("Could not change current directory to '%s': %s"),
+                        cd, strerror(errno));
+                  cd = getenv("HOME");
+                  if (cd)
+                    {
+                       ret = chdir(cd);
+                       if (ret != 0)
+                         {
+                            ERR(_("Could not change current directory to '%s': %s"),
+                                cd, strerror(errno));
+                         }
+                    }
+                  if (ret != 0)
+                    {
+                       cd = "/";
+                       if (chdir(cd) != 0)
+                         {
+                            ERR(_("Could not change current directory to '%s': %s"),
+                                cd, strerror(errno));
+                         }
+                    }
+               }
+          }
+
+
+#define NC(x) (args[x] != NULL ? args[x] : "")
+        DBG("exec %s %s %s %s", NC(0), NC(1), NC(2), NC(3));
+#undef NC
+
+        setsid();
+
+        dup2(ty->slavefd, 0);
+        dup2(ty->slavefd, 1);
+        dup2(ty->slavefd, 2);
+
+        if (ioctl(ty->slavefd, TIOCSCTTY, NULL) < 0) exit(1);
+
+        close(ty->slavefd);
+        close(ty->fd);
+
+        /* Unset env variables that no longer apply */
+        unsetenv("TERMCAP");
+        unsetenv("COLUMNS");
+        unsetenv("LINES");
+
+        switch (config->term_type)
+          {
+           case TERM_TYPE_XTERM:
+              putenv("TERM=xterm");
+              break;
+           case TERM_TYPE_TERMINOLOGY:
+              putenv("TERM=terminology");
+              break;
+           case TERM_TYPE_XTERM_256COLOR:
+           default:
+              putenv("TERM=xterm-256color");
+              break;
+          }
+        putenv("XTERM_256_COLORS=1");
+        putenv("TERM_PROGRAM=terminology");
+        putenv("TERM_PROGRAM_VERSION=" PACKAGE_VERSION);
+#if defined(ENABLE_TEST_UI)
+        putenv("IN_TY_TEST_UI=1" PACKAGE_VERSION);
+#endif
+        if (window_id)
+          {
+             char buf[256];
+
+             snprintf(buf, sizeof(buf), "WINDOWID=%lu", (unsigned long)window_id);
+             putenv(buf);
+          }
+#if ((EFL_VERSION_MAJOR > 1) || (EFL_VERSION_MINOR >= 24)) || ((EFL_VERSION_MAJOR == 1) && (EFL_VERSION_MINOR == 23) && (EFL_VERSION_MICRO == 99))
+        eina_file_close_from(3, NULL);
+#endif
+        if (!login_shell)
+          execvp(args[0], (char *const *)args);
+        else
+          {
+             char *cmdfile, *cmd0;
+
+             cmdfile = (char *)args[0];
+             cmd0 = alloca(strlen(cmdfile) + 2);
+             cmd0[0] = '-';
+             strcpy(cmd0 + 1, cmdfile);
+             args[0] = cmd0;
+             execvp(cmdfile, (char *const *)args);
+          }
+        exit(127); /* same as system() for failed commands */
+     }
+   close(ty->slavefd);
+   ty->slavefd = -1;
+
+   ty->hand_fd = ecore_main_fd_handler_add(ty->fd, ECORE_FD_READ,
+                                           _cb_fd, ty,
+                                           NULL, NULL);
+   /* ensure we're not missing a read */
+   _cb_fd(ty, ty->hand_fd);
+
+   _pty_size(ty);
+   termpty_save_register(ty);
+   return ty;
+err:
+   free(ty->screen);
+   free(ty->screen2);
+   free(ty->hl.bitmap);
+   if (ty->fd >= 0) close(ty->fd);
+   if (ty->slavefd >= 0) close(ty->slavefd);
+   free(ty);
+   return NULL;
+}
+
+void
+termpty_sync_output_snapshot_free(Termpty *ty)
+{
+   int y;
+
+   if (!ty->sync_output.shadow_rows)
+     return;
+   for (y = 0; y < ty->sync_output.shadow_h; y++)
+     {
+        free(ty->sync_output.shadow_rows[y]);
+        ty->sync_output.shadow_rows[y] = NULL;
+     }
+   free(ty->sync_output.shadow_rows);
+   ty->sync_output.shadow_rows = NULL;
+   ty->sync_output.shadow_h = 0;
+   ty->sync_output.shadow_w = 0;
+}
+
+void
+termpty_free(Termpty *ty)
+{
+   Termexp *ex;
+
+   termpty_save_unregister(ty);
+   EINA_LIST_FREE(ty->block.expecting, ex) free(ex);
+   if (ty->block.blocks) eina_hash_free(ty->block.blocks);
+   if (ty->block.chid_map) eina_hash_free(ty->block.chid_map);
+   if (ty->block.active) eina_list_free(ty->block.active);
+   if (ty->fd >= 0)
+     {
+        close(ty->fd);
+        ty->fd = -1;
+     }
+   if (ty->slavefd >= 0) close(ty->slavefd);
+   if (ty->pid >= 0)
+     {
+        int i;
+
+        // in case someone stopped the child - cont it
+        kill(ty->pid, SIGCONT);
+        // sighup the shell
+        kill(ty->pid, SIGHUP);
+        // try 400 time (sleeping for 1ms) to check for death of child
+        for (i = 0; i < 400; i++)
+          {
+             int status = 0;
+
+             // poll exit of child pid
+             if (waitpid(ty->pid, &status, WNOHANG) == ty->pid)
+               {
+                  // if child exited - break loop and mark pid as done
+                  ty->pid = -1;
+                  break;
+               }
+             // after 100ms set sigint
+             if      (i == 100) kill(ty->pid, SIGINT);
+             // after 200ms send term signal
+             else if (i == 200) kill(ty->pid, SIGTERM);
+             // after 300ms send quit signal
+             else if (i == 300) kill(ty->pid, SIGQUIT);
+             usleep(1000); // sleep 1ms
+          }
+        // so 400ms and child not gone - KILL!
+        if (ty->pid >= 0)
+          {
+             kill(ty->pid, SIGKILL);
+             ty->pid = -1;
+          }
+     }
+   /* Reset active first so accessor fall-through during teardown is safe. */
+   ty->sync_output.active = EINA_FALSE;
+   if (ty->sync_output.watchdog)
+     {
+        ecore_timer_del(ty->sync_output.watchdog);
+        ty->sync_output.watchdog = NULL;
+     }
+   termpty_sync_output_snapshot_free(ty);
+   if (ty->hand_exe_exit)
+     ecore_event_handler_del(ty->hand_exe_exit);
+   if (ty->hand_fd)
+     ecore_main_fd_handler_del(ty->hand_fd);
+   eina_stringshare_del(ty->prop.title);
+   eina_stringshare_del(ty->prop.user_title);
+   eina_stringshare_del(ty->prop.icon);
+   eina_stringshare_del(ty->prop.cwd);
+   termpty_backlog_free(ty);
+   free(ty->screen);
+   free(ty->screen2);
+   if (ty->hl.links)
+     {
+        uint16_t i;
+
+        for (i = 0; i < ty->hl.size; i++)
+          {
+             Term_Link *l = ty->hl.links + i;
+
+             term_link_free(ty, l);
+          }
+       free(ty->hl.links);
+     }
+   free(ty->hl.bitmap);
+   free(ty->buf);
+   free(ty->tabs);
+   ty_sb_free(&ty->write_buffer);
+   free(ty);
+}
+
+void
+termpty_sync_output_reset(Termpty *ty)
+{
+   /* active must go FALSE before freeing the snapshot so that any accessor
+    * call during teardown falls through to the live path. */
+   ty->sync_output.active = EINA_FALSE;
+   if (ty->sync_output.watchdog)
+     {
+        ecore_timer_del(ty->sync_output.watchdog);
+        ty->sync_output.watchdog = NULL;
+     }
+   termpty_sync_output_snapshot_free(ty);
+}
+
+void
+termpty_config_update(Termpty *ty, Config *config)
+{
+   ty->config = config;
+   termpty_backlog_size_set(ty, config->scrollback);
+}
+
+static Eina_Bool
+_termpty_cell_is_empty(const Termcell *cell)
+{
+   return ((cell->codepoint == 0) ||
+           (cell->att.invisible) ||
+           ((cell->att.fg256 == 0) && (cell->att.fg == COL_INVIS))) &&
+      (((cell->att.bg256 == 0) && (cell->att.bg == COL_INVIS)) || (cell->att.bg == COL_DEF));
+}
+
+static Eina_Bool
+_termpty_line_is_empty(const Termcell *cells, ssize_t nb_cells)
+{
+   static const Termcell zero_cells[8] = {{0}};
+   ssize_t pos;
+
+   pos = nb_cells;
+
+   while (pos >= 8 &&
+          memcmp(&cells[pos - 8], zero_cells, 8 * sizeof(Termcell)) == 0)
+     pos -= 8;
+
+   for (pos = pos - 1; pos >= 0; pos--)
+     {
+        if (!_termpty_cell_is_empty(&cells[pos]))
+          return EINA_FALSE;
+     }
+
+   return EINA_TRUE;
+}
+
+
+ssize_t
+termpty_line_length(const Termcell *cells, ssize_t nb_cells)
+{
+   ssize_t pos;
+   size_t used;
+
+   if (!cells || nb_cells <= 0)
+     return 0;
+
+   /* An all-zero cell is always empty (COL_DEF is 0), so nothing past the last
+    * non-zero byte can contribute. This only narrows the range; the per-cell
+    * test below still decides. */
+   used = simd_rscan_nonzero((const unsigned char *)cells,
+                             (size_t)nb_cells * sizeof(Termcell));
+   pos = (ssize_t) DIV_ROUND_UP(used, sizeof(Termcell));
+   if (pos > nb_cells) pos = nb_cells;
+
+   for (pos = pos - 1; pos >= 0; pos--)
+     {
+        if (!_termpty_cell_is_empty(&cells[pos]))
+          return pos + 1;
+     }
+
+   return 0;
+}
+
+
+/* Flag a run of cells as continuing onto the next line. The byte carrying
+ * att.autowrapped depends on the compiler's bitfield layout, so it is worked
+ * out once from a cell that has the bit set. */
+static void
+_mark_autowrapped(Termcell *cells, ssize_t n)
+{
+   /* NOT_PROBED rather than a zero 'bit', so the probe runs exactly once even
+    * if it ever comes up empty. */
+#define NOT_PROBED ((size_t)-1)
+   static size_t off = NOT_PROBED;
+   static unsigned char bit;
+
+   if (EINA_UNLIKELY(off == NOT_PROBED))
+     {
+        Termcell probe;
+        size_t i;
+
+        memset(&probe, 0, sizeof(probe));
+        probe.att.autowrapped = 1;
+        for (i = 0; i < sizeof(probe); i++)
+          {
+             if (((const unsigned char *)&probe)[i])
+               {
+                  off = i;
+                  bit = ((const unsigned char *)&probe)[i];
+                  break;
+               }
+          }
+        assert(off != NOT_PROBED);
+     }
+
+   if (EINA_UNLIKELY(off == NOT_PROBED))
+     {
+        /* One bitfield bit always lands in some byte, so this is unreachable --
+         * but assert() is gone under NDEBUG, and marking nothing at all would
+         * silently stop wrapped lines from rejoining. Mark them the slow way
+         * instead of trusting the layout. */
+        ssize_t i;
+
+        for (i = 0; i < n; i++)
+          cells[i].att.autowrapped = 1;
+        return;
+     }
+
+   _Static_assert(sizeof(Termcell) == 12,
+                  "Termcell size changed: simd_records_or_byte() vectorises a "
+                  "12-byte stride and silently falls back to scalar otherwise");
+   simd_records_or_byte(cells, (size_t)n, sizeof(Termcell), off, bit);
+#undef NOT_PROBED
+}
+
+void
+termpty_text_save_top(Termpty *ty, Termcell *cells, ssize_t w_max)
+{
+   Termsave *ts;
+   ssize_t w;
+
+   if (ty->backsize == 0)
+     return;
+   assert(ty->back);
+
+   termpty_backlog_lock();
+
+   w = termpty_line_length(cells, w_max);
+   if (w > 1)
+     _mark_autowrapped(cells, w - 1);
+   if (ty->backsize > 0)
+     {
+        ts = BACKLOG_ROW_GET(ty, 1);
+        if (!ts->cells)
+          goto add_new_ts;
+        /* TODO: RESIZE uncompress ? */
+        if (ts->w && ts->cells[ts->w - 1].att.autowrapped)
+          {
+             int old_len = ts->w;
+             termpty_save_expand(ty, ts, cells, w);
+             ty->backlog_beacon.screen_y += DIV_ROUND_UP(ts->w, ty->w)
+                                          - DIV_ROUND_UP(old_len, ty->w);
+             return;
+          }
+     }
+
+add_new_ts:
+   ts = BACKLOG_ROW_GET(ty, 0);
+   ts = termpty_save_new(ty, ts, w);
+   if (!ts)
+     return;
+   TERMPTY_CELL_COPY(ty, cells, ts->cells, w);
+   ty->backpos++;
+   if (ty->backpos >= ty->backsize)
+     ty->backpos = 0;
+   termpty_backlog_unlock();
+
+   ty->backlog_beacon.screen_y++;
+   ty->backlog_beacon.backlog_y++;
+   if (ty->backlog_beacon.backlog_y >= (int)ty->backsize)
+     {
+        ty->backlog_beacon.screen_y = 0;
+        ty->backlog_beacon.backlog_y = 0;
+     }
+}
+
+
+ssize_t
+termpty_row_length(Termpty *ty, int y)
+{
+   ssize_t wret;
+   const Termcell *cells = termpty_cellrow_get(ty, y, &wret);
+
+   if (!cells)
+     return 0;
+   if (y >= 0)
+     return termpty_line_length(cells, ty->w);
+   return wret;
+}
+
+void
+termpty_backscroll_adjust(Termpty *ty, int *scroll)
+{
+   int backlog_y = ty->backlog_beacon.backlog_y;
+   int screen_y = ty->backlog_beacon.screen_y;
+
+   if ((ty->backsize == 0) || (*scroll <= 0))
+     {
+        *scroll = 0;
+        return;
+     }
+   if (*scroll < screen_y)
+     {
+        return;
+     }
+
+   backlog_y++;
+   while (42)
+     {
+        int nb_lines;
+        Termsave *ts;
+
+        ts = BACKLOG_ROW_GET(ty, backlog_y);
+        if (!ts->cells || backlog_y >= (int)ty->backsize)
+          {
+             *scroll = ty->backlog_beacon.screen_y;
+             return;
+          }
+        nb_lines = (ts->w == 0) ? 1 : DIV_ROUND_UP(ts->w, ty->w);
+        screen_y += nb_lines;
+        ty->backlog_beacon.screen_y = screen_y;
+        ty->backlog_beacon.backlog_y = backlog_y;
+        backlog_y++;
+        if (*scroll <= screen_y)
+          {
+             return;
+          }
+     }
+}
+
+/* @requested_y unit is in visual lines on the screen */
+static Termcell*
+_termpty_cellrow_from_beacon_get(Termpty *ty, int requested_y, ssize_t *wret)
+{
+   int backlog_y = ty->backlog_beacon.backlog_y;
+   int screen_y = ty->backlog_beacon.screen_y;
+   Termsave *ts;
+   int nb_lines;
+   int first_loop = EINA_TRUE;
+
+   requested_y = -requested_y;
+
+   /* check if going from 0,0 is faster than using the beacon */
+   if (screen_y - requested_y > requested_y)
+     {
+        ty->backlog_beacon.backlog_y = 0;
+        ty->backlog_beacon.screen_y = 0;
+     }
+
+   /* going upward */
+   while (requested_y >= screen_y)
+     {
+        ts = BACKLOG_ROW_GET(ty, backlog_y);
+        if (!ts->cells || backlog_y >= (int)ty->backsize)
+          {
+             return NULL;
+          }
+        nb_lines = (ts->w == 0) ? 1 : DIV_ROUND_UP(ts->w, ty->w);
+
+        /* Only update the beacon if working on different line than the one
+         * from the beacon */
+        if (!first_loop)
+          {
+             screen_y += nb_lines;
+             ty->backlog_beacon.screen_y = screen_y;
+             ty->backlog_beacon.backlog_y = backlog_y;
+          }
+
+        if ((screen_y - nb_lines < requested_y) && (requested_y <= screen_y))
+          {
+             /* found the line */
+             int delta = screen_y - requested_y;
+             *wret = ts->w - delta * ty->w;
+             if (*wret > ty->w)
+               *wret = ty->w;
+             return &ts->cells[delta * ty->w];
+          }
+        backlog_y++;
+        first_loop = EINA_FALSE;
+     }
+   /* else, going downward */
+   while (requested_y <= screen_y)
+     {
+        ts = BACKLOG_ROW_GET(ty, backlog_y);
+        if (!ts->cells)
+          {
+             return NULL;
+          }
+        nb_lines = (ts->w == 0) ? 1 : DIV_ROUND_UP(ts->w, ty->w);
+
+        ty->backlog_beacon.screen_y = screen_y;
+        ty->backlog_beacon.backlog_y = backlog_y;
+
+        if ((screen_y - nb_lines < requested_y) && (requested_y <= screen_y))
+          {
+             /* found the line */
+             int delta = screen_y - requested_y;
+             *wret = ts->w - delta * ty->w;
+             if (*wret > ty->w)
+               *wret = ty->w;
+             return &ts->cells[delta * ty->w];
+          }
+        screen_y -= nb_lines;
+        backlog_y--;
+     }
+
+   return NULL;
+}
+
+/* @requested_y unit is in visual lines on the screen */
+static Termcell *
+_termpty_cellrow_live_get(Termpty *ty, int y_requested, ssize_t *wret)
+{
+   if (y_requested >= 0)
+     {
+        Termcell *cells = &(TERMPTY_SCREEN(ty, 0, y_requested));
+        if (y_requested >= ty->h)
+          return NULL;
+
+        *wret = termpty_line_length(cells, ty->w);
+        return cells;
+     }
+   if (!ty->back)
+     return NULL;
+
+   return _termpty_cellrow_from_beacon_get(ty, y_requested, wret);
+}
+
+/* Read accessor: returns the snapshot row during a sync window (pre-BSU state),
+ * or the live row otherwise.  Renderer always calls this. */
+const Termcell *
+termpty_cellrow_get(Termpty *ty, int y_requested, ssize_t *wret)
+{
+   if (ty->sync_output.active &&
+       ty->sync_output.shadow_rows &&
+       y_requested >= 0 &&
+       y_requested < ty->sync_output.shadow_h)
+     {
+        if (wret)
+          *wret = termpty_line_length(ty->sync_output.shadow_rows[y_requested],
+                                     ty->sync_output.shadow_w);
+        return ty->sync_output.shadow_rows[y_requested];
+     }
+   return _termpty_cellrow_live_get(ty, y_requested, wret);
+}
+
+/* Write accessor: always returns the live (mutable) row.
+ * Snapshot was taken eagerly at BSU, so no per-write COW is needed here. */
+Termcell *
+termpty_cellrow_get_writeable(Termpty *ty, int y_requested, ssize_t *wret)
+{
+   return _termpty_cellrow_live_get(ty, y_requested, wret);
+}
+
+/* @requested_y unit is in visual lines on the screen */
+Termcell *
+termpty_cell_get(Termpty *ty, int y_requested, int x_requested)
+{
+   ssize_t wret = 0;
+   Termcell *cells;
+
+   if (y_requested >= 0)
+     {
+        if (y_requested >= ty->h)
+          return NULL;
+        if (x_requested >= ty->w)
+          return NULL;
+        return &(TERMPTY_SCREEN(ty, 0, y_requested)) + x_requested;
+     }
+   if (!ty->back)
+     return NULL;
+
+   cells = _termpty_cellrow_from_beacon_get(ty, y_requested, &wret);
+   if (!cells || x_requested >= wret)
+     return NULL;
+   return cells + x_requested;
+}
+
+void
+termpty_write(Termpty *ty, const char *input, int len)
+{
+#if defined(BINARY_TYFUZZ)
+   return;
+#endif
+   int res = ty_sb_add(&ty->write_buffer, input, len);
+
+   if (res < 0)
+     {
+        ERR("failure to add %d characters to write buffer", len);
+     }
+   else if (ty->hand_fd)
+     {
+        ecore_main_fd_handler_active_set(ty->hand_fd,
+                                         ECORE_FD_ERROR |
+                                         ECORE_FD_READ |
+                                         ECORE_FD_WRITE);
+     }
+}
+
+struct screen_info
+{
+   Termcell *screen;
+   int w;
+   int h;
+   int x;
+   int y;
+   int cy;
+   int cx;
+   int circular_offset;
+};
+
+#define SCREEN_INFO_GET_CELLS(Tsi, X, Y) \
+  Tsi->screen[X + (((Y + Tsi->circular_offset) % Tsi->h) * Tsi->w)]
+
+static void
+_check_screen_info(Termpty *ty, struct screen_info *si)
+{
+   if (si->y >= si->h)
+     {
+        Termcell *cells = &SCREEN_INFO_GET_CELLS(si, 0, 0);
+
+        si->y--;
+        termpty_text_save_top(ty, cells, si->w);
+        termpty_cells_clear(ty, cells, si->w);
+
+        si->circular_offset++;
+        if (si->circular_offset >= si->h)
+          si->circular_offset = 0;
+
+        si->cy--;
+     }
+}
+
+static void
+_termpty_line_rewrap(Termpty *ty, Termcell *src_cells, int len,
+                     struct screen_info *si,
+                     Eina_Bool set_cursor)
+{
+   int autowrapped;
+
+   if (len == 0)
+     {
+        if (set_cursor)
+          {
+             si->cy = si->y;
+             si->cx = 0;
+          }
+        si->y++;
+        si->x = 0;
+        _check_screen_info(ty, si);
+        return;
+     }
+
+   autowrapped = src_cells[len-1].att.autowrapped;
+
+   while (len > 0)
+     {
+        int copy_width = MIN(len, si->w - si->x);
+        Termcell *dst_cells = &SCREEN_INFO_GET_CELLS(si, si->x, si->y);
+
+        TERMPTY_CELL_COPY(ty,
+                          /*src*/ src_cells,
+                          /*dst*/ dst_cells,
+                          copy_width);
+        if (set_cursor)
+          {
+             if (ty->cursor_state.cx <= copy_width)
+               {
+                  si->cx = ty->cursor_state.cx;
+                  si->cy = si->y;
+               }
+             else
+               {
+                  ty->cursor_state.cx -= copy_width;
+               }
+          }
+        len -= copy_width;
+        si->x += copy_width;
+        src_cells += copy_width;
+        if (si->x >= si->w)
+          {
+             if ((len > 0) || (len == 0 && autowrapped))
+               {
+                  dst_cells = &SCREEN_INFO_GET_CELLS(si, 0, si->y);
+                  dst_cells[si->w - 1].att.autowrapped = 1;
+               }
+             si->y++;
+             si->x = 0;
+          }
+        _check_screen_info(ty, si);
+     }
+   if (!autowrapped && si->x != 0)
+     {
+        si->y++;
+        si->x = 0;
+        _check_screen_info(ty, si);
+     }
+}
+
+static void
+_backlog_remove_latest_nolock(Termpty *ty)
+{
+   Termsave *ts;
+   if (ty->backsize == 0)
+     return;
+   ts = BACKLOG_ROW_GET(ty, 1);
+
+   if (ty->backpos == 0)
+     ty->backpos = ty->backsize - 1;
+   else
+     ty->backpos--;
+
+   /* reset beacon */
+   ty->backlog_beacon.screen_y = 0;
+   ty->backlog_beacon.backlog_y = 0;
+
+   termpty_save_free(ty, ts);
+}
+
+void
+termpty_resize(Termpty *ty, int new_w, int new_h)
+{
+   Termcell *new_screen = NULL,
+            *old_screen2 = NULL;
+   int old_y = 0,
+       old_w = ty->w,
+       old_h = ty->h,
+       effective_old_h;
+   int altbuf = 0;
+   struct screen_info new_si = {.screen = NULL};
+   if ((ty->w == new_w) && (ty->h == new_h)) return;
+
+   /* A resize invalidates any in-flight sync window; the app will re-bracket. */
+   if (ty->sync_output.active)
+     termpty_sync_output_reset(ty);
+
+   termpty_backlog_lock();
+
+   if (ty->altbuf)
+     {
+        termpty_screen_swap(ty);
+        altbuf = 1;
+     }
+
+   new_screen = calloc(1, sizeof(Termcell) * new_w * new_h);
+   if (!new_screen)
+     goto bad;
+
+   /* The inactive screen is never rewrapped, but it must not be dropped: when
+    * the alternate buffer is on, it holds what the application is showing and
+    * curses applications only send diffs after SIGWINCH. */
+   old_screen2 = ty->screen2;
+   ty->screen2 = calloc(1, sizeof(Termcell) * new_w * new_h);
+   if (!ty->screen2)
+     {
+        ty->screen2 = old_screen2;
+        goto bad;
+     }
+   if (old_screen2)
+     {
+        int copy_w = MIN(old_w, new_w),
+            copy_h = MIN(old_h, new_h),
+            y;
+
+        for (y = 0; y < copy_h; y++)
+          {
+             int src_y = (y + ty->circular_offset2) % old_h;
+
+             memcpy(&ty->screen2[y * new_w],
+                    &old_screen2[src_y * old_w],
+                    copy_w * sizeof(Termcell));
+          }
+     }
+   free(old_screen2);
+
+   new_si.screen = new_screen;
+   new_si.w = new_w;
+   new_si.h = new_h;
+
+   /* compute the effective height on the old screen */
+   effective_old_h = 0;
+   for (old_y = old_h -1; old_y >= 0; old_y--)
+     {
+        Termcell *cells = &(TERMPTY_SCREEN(ty, 0, old_y));
+        if (!_termpty_line_is_empty(cells, old_w))
+          {
+             effective_old_h = old_y + 1;
+             break;
+          }
+     }
+
+   termpty_resize_tabs(ty, old_w, new_w);
+
+   if (effective_old_h <= ty->cursor_state.cy)
+     effective_old_h = ty->cursor_state.cy + 1;
+
+   old_y = 0;
+   /* Rewrap the first line from the history if needed */
+   if (ty->backsize > 0)
+     {
+        Termsave *ts;
+        ts = BACKLOG_ROW_GET(ty, 1);
+        ts = termpty_save_extract(ts);
+        if (ts->cells && ts->w && ts->cells[ts->w - 1].att.autowrapped)
+          {
+             Termcell *cells = &(TERMPTY_SCREEN(ty, 0, old_y)),
+                      *new_cells;
+             int len;
+
+             len = termpty_line_length(cells, old_w);
+
+             new_cells = malloc((ts->w + len) * sizeof(Termcell));
+             if (!new_cells)
+               goto bad;
+             memcpy(new_cells, ts->cells, ts->w * sizeof(Termcell));
+             memcpy(new_cells + ts->w, cells, len * sizeof(Termcell));
+
+             len+= ts->w;
+
+             _backlog_remove_latest_nolock(ty);
+
+             _termpty_line_rewrap(ty, new_cells, len, &new_si,
+                                  old_y == ty->cursor_state.cy);
+
+             free(new_cells);
+             old_y = 1;
+          }
+     }
+   /* For all the other lines, do not care about the history */
+   for (; old_y < effective_old_h; old_y++)
+     {
+        /* for each line in the old screen, append it to the new screen */
+        Termcell *cells = &(TERMPTY_SCREEN(ty, 0, old_y));
+        int len;
+
+        len = termpty_line_length(cells, old_w);
+        _termpty_line_rewrap(ty, cells, len, &new_si,
+                             old_y == ty->cursor_state.cy);
+     }
+
+   free(ty->screen);
+   ty->screen = new_screen;
+
+   ty->cursor_state.cy = MAX(new_si.cy, 0);
+   ty->cursor_state.cx = MAX(new_si.cx, 0);
+   ty->circular_offset = new_si.circular_offset;
+   ty->circular_offset2 = 0;
+
+   ty->w = new_w;
+   ty->h = new_h;
+   ty->cursor_state.wrapnext = 0;
+   ty->vs16_base_x = -1;
+   ty->vs16_base_y = -1;
+
+   if (altbuf)
+     termpty_screen_swap(ty);
+
+   _limit_coord(ty);
+
+   _pty_size(ty);
+
+   termpty_backlog_unlock();
+
+   ty->backlog_beacon.backlog_y = 0;
+   ty->backlog_beacon.screen_y = 0;
+
+   return;
+
+bad:
+   termpty_backlog_unlock();
+   free(new_screen);
+}
+
+pid_t
+termpty_pid_get(const Termpty *ty)
+{
+   return ty->pid;
+}
+
+void
+termpty_block_free(Termblock *tb)
+{
+   char *s;
+
+   if (!tb)
+     return;
+
+   eina_stringshare_del(tb->path);
+   eina_stringshare_del(tb->link);
+   eina_stringshare_del(tb->chid);
+   if (tb->obj)
+     evas_object_del(tb->obj);
+   EINA_LIST_FREE(tb->cmds, s)
+      free(s);
+   free(tb);
+}
+
+Termblock *
+termpty_block_new(Termpty *ty, int w, int h, const char *path, const char *link)
+{
+   Termblock *tb;
+   int id;
+
+   id = ty->block.curid;
+   if (!ty->block.blocks)
+     ty->block.blocks = eina_hash_int32_new((Eina_Free_Cb)termpty_block_free);
+   if (!ty->block.blocks) return NULL;
+   tb = eina_hash_find(ty->block.blocks, &id);
+   if (tb)
+     {
+        if (tb->active)
+          ty->block.active = eina_list_remove(ty->block.active, tb);
+        eina_hash_del(ty->block.blocks, &id, tb);
+     }
+   tb = calloc(1, sizeof(Termblock));
+   if (!tb) return NULL;
+   tb->pty = ty;
+   tb->id = id;
+   tb->w = w;
+   tb->h = h;
+   tb->path = eina_stringshare_add(path);
+   if (link) tb->link = eina_stringshare_add(link);
+   eina_hash_add(ty->block.blocks, &id, tb);
+   ty->block.curid++;
+   if (ty->block.curid >= 8192) ty->block.curid = 0;
+   return tb;
+}
+
+void
+termpty_block_insert(Termpty *ty, int ch, Termblock *blk)
+{
+   // bit 0-8 = y (9b 0->511)
+   // bit 9-17 = x (9b 0->511)
+   // bit 18-30 = id (13b 0->8191)
+   // bit 31 = 1
+   //
+   // fg/bg = 8+8bit unused. (use for extra id bits? so 16 + 13 == 29bit?)
+   //
+   // cp = (1 << 31) | ((id 0x1fff) << 18) | ((x & 0x1ff) << 9) | (y & 0x1ff);
+   Termexp *ex;
+
+   ex = calloc(1, sizeof(Termexp));
+   if (!ex) return;
+   ex->ch = ch;
+   ex->left = blk->w * blk->h;
+   ex->id = blk->id;
+   ex->w = blk->w;
+   ex->h = blk->h;
+   ty->block.expecting = eina_list_append(ty->block.expecting, ex);
+}
+
+Termblock *
+termpty_block_get(const Termpty *ty, int id)
+{
+   if (!ty->block.blocks) return NULL;
+   return eina_hash_find(ty->block.blocks, &id);
+}
+
+void
+termpty_block_chid_update(Termpty *ty, Termblock *blk)
+{
+   if (!blk->chid) return;
+   if (!ty->block.chid_map)
+     ty->block.chid_map = eina_hash_string_superfast_new(NULL);
+   if (!ty->block.chid_map) return;
+   eina_hash_add(ty->block.chid_map, blk->chid, blk);
+}
+
+Termblock *
+termpty_block_chid_get(const Termpty *ty, const char *chid)
+{
+   Termblock *tb;
+
+   tb = eina_hash_find(ty->block.chid_map, chid);
+   return tb;
+}
+
+void
+termpty_handle_block_codepoint_overwrite_heavy(Termpty *ty, int oldc, int newc)
+{
+   Termblock *tb;
+   int ido = 0, idn = 0;
+
+   if (oldc & 0x80000000) ido = (oldc >> 18) & 0x1fff;
+   if (newc & 0x80000000) idn = (newc >> 18) & 0x1fff;
+   if (((oldc & 0x80000000) && (newc & 0x80000000)) && (idn == ido)) return;
+
+   if (oldc & 0x80000000)
+     {
+        tb = termpty_block_get(ty, ido);
+        if (!tb) return;
+        tb->refs--;
+        if (tb->refs == 0)
+          {
+             if (tb->active)
+               ty->block.active = eina_list_remove(ty->block.active, tb);
+             eina_hash_del(ty->block.blocks, &ido, tb);
+          }
+     }
+
+   if (newc & 0x80000000)
+     {
+        tb = termpty_block_get(ty, idn);
+        if (!tb) return;
+        tb->refs++;
+     }
+}
+
+void
+termpty_screen_swap(Termpty *ty)
+{
+   Termcell *tmp_screen;
+   int tmp_circular_offset;
+
+   tmp_screen = ty->screen;
+   ty->screen = ty->screen2;
+   ty->screen2 = tmp_screen;
+
+   tmp_circular_offset = ty->circular_offset;
+   ty->circular_offset = ty->circular_offset2;
+   ty->circular_offset2 = tmp_circular_offset;
+
+   ty->altbuf = !ty->altbuf;
+
+   if (ty->cb.cancel_sel.func)
+     ty->cb.cancel_sel.func(ty->cb.cancel_sel.data);
+}
+
+void
+termpty_cells_set_content(Termpty *ty, Termcell *cells,
+                          Eina_Unicode codepoint, int count)
+{
+   int i;
+   for (i = 0; i < count; i++)
+     {
+        HANDLE_BLOCK_CODEPOINT_OVERWRITE(ty, cells[i].codepoint, codepoint);
+        cells[i].codepoint = codepoint;
+     }
+}
+
+void
+termpty_cells_att_fill_preserve_colors(Termpty *ty, Termcell *cells,
+                                       Eina_Unicode codepoint, int count)
+{
+   int i;
+   Termcell local = { .codepoint = codepoint, .att = ty->termstate.att};
+
+   if (EINA_UNLIKELY(local.att.link_id))
+     term_link_refcount_inc(ty, local.att.link_id, count);
+
+   for (i = 0; i < count; i++)
+     {
+        Termatt att = cells[i].att;
+        HANDLE_BLOCK_CODEPOINT_OVERWRITE(ty, cells[i].codepoint, codepoint);
+        if (EINA_UNLIKELY(cells[i].att.link_id))
+          term_link_refcount_dec(ty, cells[i].att.link_id, 1);
+
+        cells[i] = local;
+        if (ty->termstate.att.fg == 0 && ty->termstate.att.bg == 0)
+          {
+             cells[i].att.fg = att.fg;
+             cells[i].att.fg256 = att.fg256;
+             cells[i].att.fgintense = att.fgintense;
+
+             cells[i].att.bg = att.bg;
+             cells[i].att.bg256 = att.bg256;
+             cells[i].att.bgintense = att.bgintense;
+          }
+     }
+}
+
+
+void
+termpty_cell_codepoint_att_fill(Termpty *ty, Eina_Unicode codepoint,
+                                Termatt att, Termcell *dst, int n)
+{
+   Termcell local = { .codepoint = codepoint, .att = att };
+   int i;
+
+   if (EINA_UNLIKELY(local.att.link_id))
+     term_link_refcount_inc(ty, local.att.link_id, n);
+
+   for (i = 0; i < n; i++)
+     {
+        HANDLE_BLOCK_CODEPOINT_OVERWRITE(ty, dst[i].codepoint, codepoint);
+        if (EINA_UNLIKELY(dst[i].att.link_id))
+          term_link_refcount_dec(ty, dst[i].att.link_id, 1);
+
+        dst[i] = local;
+     }
+}
+
+/* 0 means error here */
+static uint16_t
+_find_empty_slot(const Termpty *ty)
+{
+   int pos;
+   int max_pos = HL_LINKS_MAX / 8;
+
+   for (pos = 0; pos < max_pos && ty->hl.bitmap[pos] == 0xff; pos++)
+     {
+     }
+
+   if (pos <= max_pos)
+     {
+        int bit;
+        for (bit = 0; bit < 8; bit++)
+          {
+             if (!(ty->hl.bitmap[pos] & (1<<bit)))
+               {
+                  return pos * 8 + bit;
+               }
+          }
+     }
+   return 0;
+}
+
+static void
+hl_bitmap_set_bit(Termpty *ty, uint16_t id)
+{
+   uint8_t *pos = &ty->hl.bitmap[id / 8];
+   uint8_t bit = 1 << (id % 8);
+
+   *pos |= bit;
+}
+
+static void
+hl_bitmap_clear_bit(Termpty *ty, uint16_t id)
+{
+   uint8_t *pos = &ty->hl.bitmap[id / 8];
+   uint8_t bit = 1 << (id % 8);
+
+   *pos &= ~bit;
+}
+
+void
+termpty_focus_report(Termpty *ty, Eina_Bool focus)
+{
+   if (!ty || !ty->focus_reporting)
+     return;
+   if (focus)
+     TERMPTY_WRITE_STR("\033[I");
+   else
+     TERMPTY_WRITE_STR("\033[O");
+}
+
+Term_Link *
+term_link_new(Termpty *ty)
+{
+   uint16_t id;
+   Term_Link *link;
+
+   /* 1st/ Find empty slot in bitmap */
+   id = _find_empty_slot(ty);
+   if (!id)
+     {
+        ERR("hyper links: can't find empty slot");
+        return NULL;
+     }
+
+   /* 2nd/ Do we need to realloc? */
+   if (id >= ty->hl.size)
+     {
+        Term_Link *links;
+        uint16_t old_size = ty->hl.size;
+
+        if (!ty->hl.size)
+          ty->hl.size = 256;
+        links = realloc(ty->hl.links,
+                        ty->hl.size * 2 * sizeof(Term_Link));
+        if (!links)
+          return NULL;
+        ty->hl.size *= 2;
+        ty->hl.links = links;
+        memset(ty->hl.links + old_size,
+               0,
+               (ty->hl.size - old_size) * sizeof(Term_Link));
+     }
+
+   link = ty->hl.links + id;
+   link->key = NULL;
+   link->url = NULL;
+   link->refcount = 0;
+
+   /* Mark in bitmap */
+   hl_bitmap_set_bit(ty, id);
+
+   return link;
+}
+
+void
+term_link_free(Termpty *ty, Term_Link *link)
+{
+   if (!link || !ty)
+     return;
+   uint16_t id = (link - ty->hl.links);
+
+   eina_stringshare_del(link->key);
+   link->key = NULL;
+   eina_stringshare_del(link->url);
+   link->url = NULL;
+
+   /* Remove from bitmap */
+   hl_bitmap_clear_bit(ty, id);
+}
+
+#if defined(BINARY_TYFUZZ) || defined(BINARY_TYTEST)
+
+/* Feed a NUL-terminated ASCII string as if the PTY sent it. */
+static void
+_ty_feed(Termpty *ty, const char *str)
+{
+   Eina_Unicode buf[256];
+   int i, j = 0;
+
+   for (i = 0; str[i] && j < 255; i++, j++)
+     buf[j] = (unsigned char)str[i];
+   buf[j] = 0;
+   termpty_handle_buf(ty, buf, j);
+}
+
+/* Feed an array of raw Eina_Unicode codepoints as if the PTY sent them
+ * (bypasses UTF-8 decoding so codepoints such as U+2733 or U+FE0F can be
+ * fed directly, and so a codepoint pair can be split across two calls to
+ * exercise termpty_text_append()'s VS16 retro-widen). */
+static void
+_ty_feed_uni(Termpty *ty, const Eina_Unicode *codepoints, int len)
+{
+   termpty_handle_buf(ty, codepoints, len);
+}
+
+/* Minimal Termpty allocator for unit tests — no fd, no EFL object.
+ * Requires eina+ecore init so that ecore_timer_add (watchdog) works. */
+static void
+_ty_test_init(Termpty *ty, int w, int h)
+{
+   eina_init();
+   ecore_init();
+
+   memset(ty, 0, sizeof(*ty));
+   ty->w = w;
+   ty->h = h;
+   ty->fd = -1;
+   ty->slavefd = -1;
+   ty->pid = -1;
+   ty->backsize = 50;
+   /* Real defaults (emoji_dbl_width off) so codepoints above 0xA0, such as
+    * emoji, exercise the same ty->config->emoji_dbl_width path production
+    * code takes. */
+   ty->config = config_new();
+   assert(ty->config);
+   termpty_resize_tabs(ty, 0, w);
+   termpty_reset_state(ty);
+   ty->screen  = calloc(1, sizeof(Termcell) * w * h);
+   ty->screen2 = calloc(1, sizeof(Termcell) * w * h);
+   ty->hl.bitmap = calloc(1, HL_LINKS_MAX / 8);
+   ty->hl.bitmap[0] = 1; /* id 0 reserved */
+   assert(ty->screen && ty->screen2 && ty->hl.bitmap);
+}
+
+static void
+_ty_test_shutdown(Termpty *ty)
+{
+   termpty_sync_output_reset(ty);
+   termpty_backlog_free(ty);
+   free(ty->screen);
+   free(ty->screen2);
+   free(ty->tabs);
+   free(ty->hl.bitmap);
+   free(ty->buf);
+   config_del(ty->config);
+
+   ecore_shutdown();
+   eina_shutdown();
+}
+
+/* Helper: read codepoint of cell (x,y) via the read accessor. */
+static Eina_Unicode
+_ty_cell_cp(Termpty *ty, int x, int y)
+{
+   ssize_t w = 0;
+   const Termcell *cells = termpty_cellrow_get(ty, y, &w);
+   if (!cells || x >= w) return 0;
+   return cells[x].codepoint;
+}
+
+/* Helper: read att.dblwidth of cell (x,y) via the read accessor. */
+static Eina_Bool
+_ty_cell_dblwidth(Termpty *ty, int x, int y)
+{
+   ssize_t w = 0;
+   const Termcell *cells = termpty_cellrow_get(ty, y, &w);
+   if (!cells || x >= w) return EINA_FALSE;
+   return cells[x].att.dblwidth;
+}
+
+/* Test 1: Frame coherence.
+ * BSU; write "foo"; ESU.  The read accessor must return the pre-BSU (blank)
+ * row until ESU is received, and the live "foo" after. */
+int
+tytest_sync_frame_coherence(void)
+{
+   Termpty ty;
+   const Termcell *row;
+   ssize_t w = 0;
+
+   _ty_test_init(&ty, 80, 24);
+
+   /* Pre-BSU: row 0 is blank. */
+   row = termpty_cellrow_get(&ty, 0, &w);
+   assert(row);
+   assert(row[0].codepoint == 0);
+
+   /* Begin Synchronized Update. */
+   _ty_feed(&ty, "\x1b[?2026h");
+   assert(ty.sync_output.active == EINA_TRUE);
+   assert(ty.sync_output.shadow_rows != NULL);
+
+   /* Write "foo" to row 0.  Writes to live row; the eager snapshot taken at BSU is unaffected. */
+   _ty_feed(&ty, "\r\x1b[2Kfoo");
+
+   /* Renderer sees old blank row (snapshot). */
+   row = termpty_cellrow_get(&ty, 0, &w);
+   assert(row);
+   assert(row[0].codepoint == 0); /* snapshot: still blank */
+
+   /* Writeable accessor sees live row with 'f'. */
+   {
+      Termcell *live = termpty_cellrow_get_writeable(&ty, 0, &w);
+      assert(live);
+      assert(live[0].codepoint == 'f');
+   }
+
+   /* End Synchronized Update. */
+   _ty_feed(&ty, "\x1b[?2026l");
+   assert(ty.sync_output.active == EINA_FALSE);
+   assert(ty.sync_output.shadow_rows == NULL);
+
+   /* After ESU the read accessor returns the live row. */
+   assert(_ty_cell_cp(&ty, 0, 0) == 'f');
+   assert(_ty_cell_cp(&ty, 1, 0) == 'o');
+   assert(_ty_cell_cp(&ty, 2, 0) == 'o');
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Test 2: Watchdog teardown.
+ * BSU + partial write, then force watchdog expiry by calling reset directly.
+ * Snapshot freed, no leaks, subsequent read returns live (partial) state. */
+int
+tytest_sync_watchdog_teardown(void)
+{
+   Termpty ty;
+
+   _ty_test_init(&ty, 80, 24);
+
+   _ty_feed(&ty, "\x1b[?2026h");
+   assert(ty.sync_output.active == EINA_TRUE);
+   _ty_feed(&ty, "\r\x1b[2Kpartial");
+
+   /* Simulate watchdog by calling reset (same effect as timer firing). */
+   termpty_sync_output_reset(&ty);
+   assert(ty.sync_output.active == EINA_FALSE);
+   assert(ty.sync_output.shadow_rows == NULL);
+   assert(ty.sync_output.watchdog == NULL);
+
+   /* Live state has the partial write. */
+   assert(_ty_cell_cp(&ty, 0, 0) == 'p');
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Test 3: Nested ESU/BSU.
+ * BSU "A" ESU "B" BSU "C" ESU.  After first ESU the renderer sees "A".
+ * After second ESU it sees "A...B...C" (all live). */
+int
+tytest_sync_nested(void)
+{
+   Termpty ty;
+
+   _ty_test_init(&ty, 80, 24);
+
+   /* First sync window: write 'A' to col 0. */
+   _ty_feed(&ty, "\x1b[?2026h");
+   _ty_feed(&ty, "\r\x1b[2KA");
+
+   /* Renderer still sees blank (snapshot). */
+   assert(_ty_cell_cp(&ty, 0, 0) == 0);
+
+   _ty_feed(&ty, "\x1b[?2026l"); /* ESU */
+   assert(ty.sync_output.active == EINA_FALSE);
+   /* Now renderer sees live: "A". */
+   assert(_ty_cell_cp(&ty, 0, 0) == 'A');
+
+   /* Write "B" outside sync (visible immediately). */
+   _ty_feed(&ty, "\x1b[2GB"); /* cursor to col 2, write 'B' */
+
+   /* Second sync window: write 'C' at col 4. */
+   _ty_feed(&ty, "\x1b[?2026h");
+   _ty_feed(&ty, "\x1b[4GC");
+
+   /* Renderer still sees pre-second-BSU state: 'A'@0, 'B'@1, nothing at 3. */
+   assert(_ty_cell_cp(&ty, 0, 0) == 'A');
+   assert(_ty_cell_cp(&ty, 3, 0) == 0);
+
+   _ty_feed(&ty, "\x1b[?2026l"); /* second ESU */
+   assert(ty.sync_output.active == EINA_FALSE);
+   assert(_ty_cell_cp(&ty, 1, 0) == 'B'); /* inter-window write survives second snapshot/restore */
+   assert(_ty_cell_cp(&ty, 3, 0) == 'C');
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Test 4: Resize during sync.
+ * BSU + writes + termpty_resize.  Snapshot freed, sync inactive. */
+int
+tytest_sync_resize(void)
+{
+   Termpty ty;
+
+   _ty_test_init(&ty, 80, 24);
+
+   _ty_feed(&ty, "\x1b[?2026h");
+   assert(ty.sync_output.active == EINA_TRUE);
+   _ty_feed(&ty, "\r\x1b[2Khello");
+
+   /* Resize invalidates the sync window. */
+   termpty_resize(&ty, 40, 24);
+   assert(ty.sync_output.active == EINA_FALSE);
+   assert(ty.sync_output.shadow_rows == NULL);
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* A resize must keep the alternate screen's cells that still fit: curses
+ * applications only redraw what they think changed after SIGWINCH, so
+ * dropping them leaves the screen blank (issue #212). */
+int
+tytest_altscreen_resize_keeps_content(void)
+{
+   Termpty ty;
+
+   _ty_test_init(&ty, 80, 24);
+
+   _ty_feed(&ty, "\x1b[1;1Hnormal");
+   _ty_feed(&ty, "\x1b[?1049h");
+   assert(ty.altbuf);
+   _ty_feed(&ty, "\x1b[3;1Halpha");
+   assert(_ty_cell_cp(&ty, 1, 2) == 'l');
+
+   /* Shrinking keeps what still fits. */
+   termpty_resize(&ty, 70, 20);
+   assert(ty.altbuf);
+   assert(_ty_cell_cp(&ty, 1, 2) == 'l');
+   assert(_ty_cell_cp(&ty, 4, 2) == 'a');
+
+   /* Growing keeps it too, on the same row. */
+   termpty_resize(&ty, 100, 30);
+   assert(_ty_cell_cp(&ty, 1, 2) == 'l');
+
+   /* The normal screen went through the rewrap path meanwhile. */
+   _ty_feed(&ty, "\x1b[?1049l");
+   assert(!ty.altbuf);
+   assert(_ty_cell_cp(&ty, 1, 0) == 'o');
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Test 5: Soft reset during sync.
+ * BSU + writes + DECSTR (\e[!p). Snapshot freed. */
+int
+tytest_sync_soft_reset(void)
+{
+   Termpty ty;
+
+   _ty_test_init(&ty, 80, 24);
+
+   _ty_feed(&ty, "\x1b[?2026h");
+   assert(ty.sync_output.active == EINA_TRUE);
+   _ty_feed(&ty, "\r\x1b[2Kworld");
+
+   /* DECSTR — soft reset. */
+   _ty_feed(&ty, "\x1b[!p");
+   assert(ty.sync_output.active == EINA_FALSE);
+   assert(ty.sync_output.shadow_rows == NULL);
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Change-callback coalescing (mode 2026)
+ * termio's _smart_pty_change() drops pty change callbacks while
+ * sync_output.active is true, so the whole render pipeline depends on
+ * _sync_output_end() firing cb.change.func exactly once when the window
+ * closes: on ESU, on the watchdog, or on an alt-buffer switch.
+ * _ty_feed() calls termpty_handle_buf() directly, bypassing the fire in
+ * termpty_read_cb(), so the counter below sees the sync path and nothing
+ * else. */
+
+/* Counts the number of times the change callback fires. */
+static void
+_ty_change_cb_count(void *data)
+{
+   int *fires = data;
+
+   (*fires)++;
+}
+
+/* Counts and stops the main loop so the watchdog test need not wait. */
+static void
+_ty_change_cb_count_quit(void *data)
+{
+   int *fires = data;
+
+   (*fires)++;
+   ecore_main_loop_quit();
+}
+
+/* safety timer for the watchdog test */
+static Eina_Bool
+_ty_loop_timeout_cb(void *data)
+{
+   Ecore_Timer **timer = data;
+
+   *timer = NULL; /* timer owns itself once it has fired */
+   ecore_main_loop_quit();
+   return ECORE_CALLBACK_CANCEL;
+}
+
+/* Test 6: One coalesced frame per BSU/ESU pair.
+ * No change callback may fire between BSU and ESU, however many writes the
+ * burst contains; ESU queues exactly one. */
+int
+tytest_sync_change_cb_coalesced(void)
+{
+   Termpty ty;
+   int fires = 0;
+
+   _ty_test_init(&ty, 80, 24);
+   ty.cb.change.func = _ty_change_cb_count;
+   ty.cb.change.data = &fires;
+
+   /* ESU with no window open has nothing to render. */
+   _ty_feed(&ty, "\x1b[?2026l");
+   assert(fires == 0);
+
+   _ty_feed(&ty, "\x1b[?2026h");
+   assert(ty.sync_output.active == EINA_TRUE);
+   assert(fires == 0);
+
+   /* A burst of full-line clears and rewrites: the pattern some TUIs
+    * emit.  Every one of these mutates the live screen; none may queue a
+    * frame. */
+   _ty_feed(&ty, "\r\x1b[2Kfoo\r\x1b[2Kbar\r\x1b[2Kbaz");
+   assert(fires == 0);
+
+   /* Nested BSU only pushes the watchdog deadline back. */
+   _ty_feed(&ty, "\x1b[?2026h");
+   assert(ty.sync_output.active == EINA_TRUE);
+   assert(fires == 0);
+
+   /* ESU closes the window and queues the single coalesced frame. */
+   _ty_feed(&ty, "\x1b[?2026l");
+   assert(ty.sync_output.active == EINA_FALSE);
+   assert(fires == 1);
+   assert(_ty_cell_cp(&ty, 0, 0) == 'b'); /* last write of the burst */
+
+   /* A second ESU has no window to close: no extra frame. */
+   _ty_feed(&ty, "\x1b[?2026l");
+   assert(fires == 1);
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Test 7: The watchdog queues the frame when ESU never arrives.
+ * Without this, a buggy or killed app would leave the window open and
+ * _smart_pty_change() would keep dropping frames forever. */
+int
+tytest_sync_change_cb_watchdog(void)
+{
+   Termpty ty;
+   int fires = 0;
+   Ecore_Timer *safety;
+
+   _ty_test_init(&ty, 80, 24);
+   ty.cb.change.func = _ty_change_cb_count_quit;
+   ty.cb.change.data = &fires;
+
+   _ty_feed(&ty, "\x1b[?2026h");
+   _ty_feed(&ty, "\r\x1b[2Kpartial");
+   assert(ty.sync_output.active == EINA_TRUE);
+   assert(ty.sync_output.watchdog != NULL);
+   assert(fires == 0);
+
+   /* No ESU is ever sent.  The 150ms watchdog has to end the window on its
+    * own; the safety timer only keeps a broken watchdog from hanging the
+    * suite. */
+   safety = ecore_timer_add(5.0, _ty_loop_timeout_cb, &safety);
+   ecore_main_loop_begin();
+   if (safety) ecore_timer_del(safety);
+
+   assert(fires == 1);
+   assert(ty.sync_output.active == EINA_FALSE);
+   assert(ty.sync_output.watchdog == NULL);
+   assert(ty.sync_output.shadow_rows == NULL);
+   /* The frame that got queued shows the live, partial burst. */
+   assert(_ty_cell_cp(&ty, 0, 0) == 'p');
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Test 8: An alt-buffer switch mid-sync queues one frame.
+ * The window is invalidated (the app is expected to re-bracket), and the
+ * renderer must be told, or the swapped-in screen never gets painted. */
+int
+tytest_sync_change_cb_altscreen(void)
+{
+   Termpty ty;
+   int fires = 0;
+
+   _ty_test_init(&ty, 80, 24);
+   ty.cb.change.func = _ty_change_cb_count;
+   ty.cb.change.data = &fires;
+
+   _ty_feed(&ty, "\x1b[?2026h");
+   _ty_feed(&ty, "\r\x1b[2Kmain");
+   assert(ty.sync_output.active == EINA_TRUE);
+   assert(fires == 0);
+
+   /* DECSET 1049 -- switch to the alternate buffer. */
+   _ty_feed(&ty, "\x1b[?1049h");
+   assert(ty.sync_output.active == EINA_FALSE);
+   assert(ty.sync_output.shadow_rows == NULL);
+   assert(fires == 1);
+
+   /* Back to the normal buffer with no window open: no frame from the sync
+    * path. */
+   _ty_feed(&ty, "\x1b[?1049l");
+   assert(fires == 1);
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Compare what was written back to the application, then drop it. */
+static void
+_ty_reply_is(Termpty *ty, const char *expected)
+{
+   size_t len = strlen(expected);
+
+   assert(ty->write_buffer.len == len);
+   assert(!memcmp(ty->write_buffer.buf + ty->write_buffer.gap, expected, len));
+   ty_sb_free(&ty->write_buffer);
+}
+
+/* XTMODKEYS: CSI > Pp ; Pv m, Pp selects the resource, Pv is the value. */
+int
+tytest_xmodkeys_set(void)
+{
+   Termpty ty;
+
+   _ty_test_init(&ty, 80, 24);
+
+   _ty_feed(&ty, "\x1b[>4;2m");
+   assert(ty.termstate.xmod[XMOD_OTHER] == 2);
+   assert(ty.termstate.xmod[XMOD_FUNCTIONS] == 0);
+
+   _ty_feed(&ty, "\x1b[>1;3m");
+   assert(ty.termstate.xmod[XMOD_CURSOR] == 3);
+   assert(ty.termstate.xmod[XMOD_OTHER] == 2);
+
+   /* Pv omitted: back to the initial value. */
+   _ty_feed(&ty, "\x1b[>4m");
+   assert(ty.termstate.xmod[XMOD_OTHER] == 0);
+
+   /* modifyModifierKeys and modifySpecialKeys are resources too. */
+   _ty_feed(&ty, "\x1b[>6;1m");
+   assert(ty.termstate.xmod[XMOD_MODIFIERS] == 1);
+   _ty_feed(&ty, "\x1b[>7;1m");
+   assert(ty.termstate.xmod[XMOD_SPECIAL] == 1);
+
+   /* No parameter at all: every resource is reset. */
+   _ty_feed(&ty, "\x1b[>4;2m");
+   _ty_feed(&ty, "\x1b[>m");
+   assert(ty.termstate.xmod[XMOD_CURSOR] == 0);
+   assert(ty.termstate.xmod[XMOD_OTHER] == 0);
+
+   /* CSI > Pp n resets a single resource. */
+   _ty_feed(&ty, "\x1b[>4;2m");
+   _ty_feed(&ty, "\x1b[>4n");
+   assert(ty.termstate.xmod[XMOD_OTHER] == 0);
+
+   /* An out of range resource changes nothing. */
+   _ty_feed(&ty, "\x1b[>4;2m");
+   _ty_feed(&ty, "\x1b[>8;1m");
+   assert(ty.termstate.xmod[XMOD_OTHER] == 2);
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* XTQMODKEYS: CSI ? Pp m, answered as an XTMODKEYS set. */
+int
+tytest_xmodkeys_query(void)
+{
+   Termpty ty;
+
+   _ty_test_init(&ty, 80, 24);
+
+   _ty_feed(&ty, "\x1b[?4m");
+   _ty_reply_is(&ty, "\x1b[>4;0m");
+
+   _ty_feed(&ty, "\x1b[>4;2m");
+   _ty_feed(&ty, "\x1b[?4m");
+   _ty_reply_is(&ty, "\x1b[>4;2m");
+
+   _ty_feed(&ty, "\x1b[?1m");
+   _ty_reply_is(&ty, "\x1b[>1;0m");
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Unanswered kitty sequences are how a client keeps to legacy encoding */
+int
+tytest_kitty_keyboard_ignored(void)
+{
+   Termpty ty;
+
+   _ty_test_init(&ty, 80, 24);
+
+   _ty_feed(&ty, "\x1b[?u");       /* query  */
+   _ty_feed(&ty, "\x1b[?0u");      /* query  */
+   _ty_feed(&ty, "\x1b[>1u");      /* push   */
+   _ty_feed(&ty, "\x1b[<1u");      /* pop    */
+   _ty_feed(&ty, "\x1b[=1;1u");    /* set    */
+
+   assert(ty.write_buffer.len == 0);
+
+   /* CSI u with no parameter is still a cursor restore. */
+   _ty_feed(&ty, "\x1b[10;20H\x1b[s\x1b[1;1H\x1b[u");
+   assert(ty.cursor_state.cx == 19);
+   assert(ty.cursor_state.cy == 9);
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* VS16-aware emoji width (retro-widen)
+ *
+ * emoji_dbl_width makes _termpty_is_wide() report double-width for a
+ * superset of codepoints that includes text-presentation symbols such as
+ * U+2733 (East_Asian_Width = Narrow), which wcwidth-based apps (tmux,
+ * readline, ...) count as single-width. Per Unicode TR51 / kitty / foot /
+ * wezterm, such a codepoint is only double-width when immediately
+ * followed by U+FE0F (VARIATION SELECTOR-16); genuinely wide codepoints
+ * (the base table, e.g. U+1100..115F, U+1F600) are unaffected either way.
+ *
+ * The base character is always written narrow first and retro-widened in
+ * place if/when U+FE0F arrives (see termpty_text_append()): a codepoint +
+ * VS16 pair can straddle two termpty_text_append() calls, or even two
+ * termpty_handle_buf() reads, so lookahead is not sufficient. */
+
+#define CP_STAR    0x2733  /* EIGHT SPOKED ASTERISK: emoji-table-only */
+#define CP_VS16    0xfe0f  /* VARIATION SELECTOR-16 */
+#define CP_GRINNING 0x1f600 /* GRINNING FACE: base (genuinely wide) table */
+
+/* Shared setup: a fresh 80x24 Termpty with emoji_dbl_width forced on. */
+static void
+_ty_vs16_test_init(Termpty *ty)
+{
+   _ty_test_init(ty, 80, 24);
+   ty->config->emoji_dbl_width = EINA_TRUE;
+}
+
+/* Test: the actual regression.  80x24, identifiable content on row 1,
+ * cursor forced to row 24, then a full 80-column "status line" containing
+ * one bare U+2733 -- as tmux would draw an 80-col status bar.  With the
+ * bug, wcwidth-based tmux believes this is 80 columns wide, but
+ * emoji_dbl_width made terminology see it as 81 columns, so the 80th
+ * character forces the deferred autowrap and the screen scrolls one line,
+ * pushing row 1 into the backlog. */
+int
+tytest_vs16_regression_no_scroll(void)
+{
+   Termpty ty;
+   Eina_Unicode line[80];
+   int i;
+
+   _ty_vs16_test_init(&ty);
+
+   /* Identifiable content on row 1. */
+   _ty_feed(&ty, "TOP-ROW-MARKER");
+
+   /* Force cursor to row 24 (0-indexed row 23), column 1. */
+   _ty_feed(&ty, "\x1b[24d\r");
+   assert(ty.cursor_state.cy == 23);
+   assert(ty.cursor_state.cx == 0);
+
+   /* Exactly 80 characters, one of them (mid-line) a bare U+2733. */
+   for (i = 0; i < 80; i++)
+     line[i] = (i == 40) ? CP_STAR : 'x';
+   _ty_feed_uni(&ty, line, 80);
+
+   /* No scroll: nothing pushed to the backlog. */
+   assert(ty.backpos == 0);
+
+   /* Row 1 content is still on screen. */
+   assert(_ty_cell_cp(&ty, 0, 0) == 'T');
+   assert(_ty_cell_cp(&ty, 1, 0) == 'O');
+   assert(_ty_cell_cp(&ty, 2, 0) == 'P');
+
+   /* The status text occupies row 24 (index 23) columns 1..80 exactly:
+    * cursor did not overflow past the last column via a spurious wide
+    * cell, and there is exactly one 'x' immediately either side of the
+    * (narrow) asterisk. */
+   assert(_ty_cell_cp(&ty, 39, 23) == 'x');
+   assert(_ty_cell_cp(&ty, 40, 23) == CP_STAR);
+   assert(_ty_cell_cp(&ty, 41, 23) == 'x');
+   assert(_ty_cell_cp(&ty, 79, 23) == 'x');
+
+   /* Cursor at 1;1 after CUP. */
+   _ty_feed(&ty, "\x1b[1;1H");
+   assert(ty.cursor_state.cx == 0);
+   assert(ty.cursor_state.cy == 0);
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Test: bare U+2733 (no VS16) -> width 1, cursor advances by 1. */
+int
+tytest_vs16_bare_narrow(void)
+{
+   Termpty ty;
+   Eina_Unicode cp = CP_STAR;
+
+   _ty_vs16_test_init(&ty);
+
+   _ty_feed_uni(&ty, &cp, 1);
+
+   assert(_ty_cell_cp(&ty, 0, 0) == CP_STAR);
+   assert(ty.cursor_state.cx == 1);
+   assert(_ty_cell_dblwidth(&ty, 0, 0) == 0);
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Test: U+2733 + U+FE0F in one termpty_text_append() (one
+ * termpty_handle_buf() call) -> width 2, cursor advances by 2, partner
+ * cell has codepoint 0 and dblwidth set on the base cell. */
+int
+tytest_vs16_widens_one_call(void)
+{
+   Termpty ty;
+   Eina_Unicode cps[2] = { CP_STAR, CP_VS16 };
+
+   _ty_vs16_test_init(&ty);
+
+   _ty_feed_uni(&ty, cps, 2);
+
+   assert(ty.cursor_state.cx == 2);
+   assert(_ty_cell_cp(&ty, 0, 0) == CP_STAR);
+   assert(_ty_cell_dblwidth(&ty, 0, 0) == 1);
+   assert(_ty_cell_cp(&ty, 1, 0) == 0);
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Test: same as above, but the base character and U+FE0F are fed via two
+ * separate termpty_text_append()/termpty_handle_buf() calls -- the case
+ * lookahead inside termpty_text_append() would miss, since a read can end
+ * exactly between the emoji and its VS16. */
+int
+tytest_vs16_widens_split_calls(void)
+{
+   Termpty ty;
+   Eina_Unicode star = CP_STAR;
+   Eina_Unicode vs16 = CP_VS16;
+
+   _ty_vs16_test_init(&ty);
+
+   _ty_feed_uni(&ty, &star, 1);
+   assert(ty.cursor_state.cx == 1); /* still narrow until VS16 arrives */
+
+   _ty_feed_uni(&ty, &vs16, 1);
+
+   assert(ty.cursor_state.cx == 2);
+   assert(_ty_cell_cp(&ty, 0, 0) == CP_STAR);
+   assert(_ty_cell_dblwidth(&ty, 0, 0) == 1);
+   assert(_ty_cell_cp(&ty, 1, 0) == 0);
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Test: U+FE0F arrives with no room to widen (base U+2733 was written
+ * into the very last column, so wrapnext is now pending) -> stays narrow,
+ * no wrap, no scroll: a mere presentation selector must never itself
+ * trigger the deferred autowrap. */
+int
+tytest_vs16_no_room_no_wrap(void)
+{
+   Termpty ty;
+   Eina_Unicode fill[80];
+   Eina_Unicode vs16 = CP_VS16;
+   int i;
+
+   _ty_vs16_test_init(&ty);
+
+   /* Fill the line so the last codepoint (the asterisk) lands in the last
+    * column, setting wrapnext. */
+   for (i = 0; i < 80; i++)
+     fill[i] = (i == 79) ? CP_STAR : 'x';
+   _ty_feed_uni(&ty, fill, 80);
+
+   assert(ty.cursor_state.wrapnext == 1);
+   assert(ty.cursor_state.cx == 79);
+   assert(ty.backpos == 0);
+
+   _ty_feed_uni(&ty, &vs16, 1);
+
+   /* Still narrow, still pending wrap at the same position, no scroll. */
+   assert(_ty_cell_cp(&ty, 79, 0) == CP_STAR);
+   assert(_ty_cell_dblwidth(&ty, 79, 0) == 0);
+   assert(ty.cursor_state.wrapnext == 1);
+   assert(ty.cursor_state.cx == 79);
+   assert(ty.backpos == 0);
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Test: U+1F600 (base table, genuinely wide) -> width 2 with and without
+ * VS16, unchanged behaviour. */
+int
+tytest_vs16_base_table_unaffected(void)
+{
+   Termpty ty;
+   Eina_Unicode cp = CP_GRINNING;
+   Eina_Unicode pair[2] = { CP_GRINNING, CP_VS16 };
+
+   _ty_vs16_test_init(&ty);
+
+   _ty_feed_uni(&ty, &cp, 1);
+   assert(_ty_cell_cp(&ty, 0, 0) == CP_GRINNING);
+   assert(_ty_cell_dblwidth(&ty, 0, 0) == 1);
+   assert(ty.cursor_state.cx == 2);
+
+   _ty_test_shutdown(&ty);
+
+   _ty_vs16_test_init(&ty);
+
+   _ty_feed_uni(&ty, pair, 2);
+   assert(_ty_cell_cp(&ty, 0, 0) == CP_GRINNING);
+   assert(_ty_cell_dblwidth(&ty, 0, 0) == 1);
+   /* VS16 folded away (skipped), no extra column consumed. */
+   assert(ty.cursor_state.cx == 2);
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Test: U+FE0F arriving after a cursor move (the recorded write position
+ * is now invalid) -> no widening, no corruption. */
+int
+tytest_vs16_guard_invalidated_by_cursor_move(void)
+{
+   Termpty ty;
+   Eina_Unicode star = CP_STAR;
+   Eina_Unicode vs16 = CP_VS16;
+
+   _ty_vs16_test_init(&ty);
+
+   _ty_feed_uni(&ty, &star, 1);
+   assert(ty.cursor_state.cx == 1);
+
+   /* Move the cursor to an unrelated position: the recorded write
+    * position (0,0) no longer matches (cx-1, cy), so the guard must
+    * refuse to widen wherever the cursor now is. (Landing back at
+    * exactly the recorded position is a different, accepted case: see
+    * tytest_vs16_widens_split_calls-style tests -- content still
+    * matches, so widening there is correct.) */
+   _ty_feed(&ty, "\x1b[3;6H");
+   assert(ty.cursor_state.cx == 5);
+   assert(ty.cursor_state.cy == 2);
+
+   _ty_feed_uni(&ty, &vs16, 1);
+
+   assert(_ty_cell_cp(&ty, 0, 0) == CP_STAR);
+   assert(_ty_cell_dblwidth(&ty, 0, 0) == 0); /* not widened: guard was invalid */
+   assert(_ty_cell_dblwidth(&ty, 4, 2) == 0); /* nor was the unrelated cell */
+   assert(ty.cursor_state.cx == 5);  /* VS16 consumed no column */
+   assert(ty.cursor_state.cy == 2);
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Test: cjk_ambiguous_wide on -- same VS16 gating, but via the ambiguous
+ * tables (_termpty_is_ambigous_wide()) instead of the plain ones. */
+int
+tytest_vs16_cjk_ambiguous_wide(void)
+{
+   Termpty ty;
+   Eina_Unicode cps[2] = { CP_STAR, CP_VS16 };
+
+   _ty_vs16_test_init(&ty);
+   ty.termstate.cjk_ambiguous_wide = 1;
+
+   _ty_feed_uni(&ty, cps, 2);
+
+   assert(_ty_cell_cp(&ty, 0, 0) == CP_STAR);
+   assert(_ty_cell_dblwidth(&ty, 0, 0) == 1);
+   assert(_ty_cell_cp(&ty, 1, 0) == 0);
+   assert(ty.cursor_state.cx == 2);
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* --- Regression tests for review findings 1 & 2: DECSTBM, DECSLRM, DECOM
+ * and HT reposition the cursor without going through any of the sites
+ * that clear cursor_state.wrapnext, so a flag-based "is the previous
+ * write still valid" guard living on Term_Cursor would stay stale across
+ * them. Each test below writes a "decoy" emoji-table-only codepoint at
+ * some position, performs an unrelated real write elsewhere (so the
+ * decoy is *not* the actual last write), then uses the operation under
+ * test to reposition the cursor so that it lands exactly one column past
+ * the decoy -- purely by coincidence, not because the decoy was the last
+ * thing written. A correct implementation must not widen the decoy: the
+ * recorded write position (vs16_base_x/y) only matches the real last
+ * write, which is elsewhere. */
+
+/* Test: HT (tab) forward lands the cursor right after an old, unrelated
+ * emoji-table-only cell -> no widening of that unrelated cell. */
+int
+tytest_vs16_guard_invalidated_by_ht(void)
+{
+   Termpty ty;
+   Eina_Unicode vs16 = CP_VS16;
+   Eina_Unicode star = CP_STAR;
+
+   _ty_vs16_test_init(&ty);
+
+   /* Decoy: a star at column 7 (the coming HT will tab to column 8). */
+   _ty_feed(&ty, "\x1b[1;8H");
+   _ty_feed_uni(&ty, &star, 1);
+   assert(ty.cursor_state.cx == 8);
+   assert(_ty_cell_cp(&ty, 7, 0) == CP_STAR);
+
+   /* The real last write: back to column 0, another star (so the guard
+    * legitimately has something valid recorded, just not at column 7). */
+   _ty_feed(&ty, "\x1b[1;1H");
+   _ty_feed_uni(&ty, &star, 1);
+   assert(ty.cursor_state.cx == 1);
+
+   /* HT tabs forward from column 1 to the next default tab stop, column 8
+    * -- exactly one past the column-7 decoy. */
+   _ty_feed(&ty, "\t");
+   assert(ty.cursor_state.cx == 8);
+   assert(ty.cursor_state.cy == 0);
+
+   _ty_feed_uni(&ty, &vs16, 1);
+
+   /* The decoy at column 7 must not have been widened. */
+   assert(_ty_cell_dblwidth(&ty, 7, 0) == 0);
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Test: DECOM (origin mode, "ESC[?6h") repositions the cursor to
+ * (left_margin, top_margin) using margins set while origin mode was off
+ * -- landing right after an old, unrelated emoji-table-only cell -> no
+ * widening. */
+int
+tytest_vs16_guard_invalidated_by_decom(void)
+{
+   Termpty ty;
+   Eina_Unicode vs16 = CP_VS16;
+   Eina_Unicode star = CP_STAR;
+
+   _ty_vs16_test_init(&ty);
+
+   _ty_feed(&ty, "\x1b[?69h");  /* enable DECLRMM */
+   /* Set left_margin=8, top_margin=3 while origin mode is off: these
+    * moves land at (0,0), harmless, but the margins stick. */
+   _ty_feed(&ty, "\x1b[9;80s"); /* DECSLRM: left_margin = 9-1 = 8 */
+   _ty_feed(&ty, "\x1b[4;24r"); /* DECSTBM: top_margin = 4-1 = 3 */
+
+   /* Decoy: a star at row 3, column 7. */
+   _ty_feed(&ty, "\x1b[4;8H");
+   _ty_feed_uni(&ty, &star, 1);
+   assert(ty.cursor_state.cy == 3);
+   assert(ty.cursor_state.cx == 8);
+   assert(_ty_cell_cp(&ty, 7, 3) == CP_STAR);
+
+   /* Real last write, well away from the decoy. */
+   _ty_feed(&ty, "\x1b[11;31H");
+   _ty_feed_uni(&ty, &star, 1);
+
+   /* Enabling DECOM moves the cursor to (left_margin, top_margin) =
+    * (8, 3) -- exactly one column past the decoy, same row. */
+   _ty_feed(&ty, "\x1b[?6h");
+   assert(ty.cursor_state.cy == 3);
+   assert(ty.cursor_state.cx == 8);
+
+   _ty_feed_uni(&ty, &vs16, 1);
+
+   assert(_ty_cell_dblwidth(&ty, 7, 3) == 0);
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Test: DECSTBM ("ESC[r") itself repositions the cursor to
+ * (left_margin, top_margin) when origin mode is already on -- landing
+ * right after an old, unrelated emoji-table-only cell -> no widening. */
+int
+tytest_vs16_guard_invalidated_by_decstbm(void)
+{
+   Termpty ty;
+   Eina_Unicode vs16 = CP_VS16;
+   Eina_Unicode star = CP_STAR;
+
+   _ty_vs16_test_init(&ty);
+
+   _ty_feed(&ty, "\x1b[?69h"); /* enable DECLRMM */
+   _ty_feed(&ty, "\x1b[?6h");  /* enable DECOM: restrict_cursor on, margins still 0 */
+
+   /* Decoy: a star at row 3, column 7 (CUP is still unshifted: margins
+    * are 0 at this point, so relative == absolute coordinates). */
+   _ty_feed(&ty, "\x1b[4;8H");
+   _ty_feed_uni(&ty, &star, 1);
+   assert(ty.cursor_state.cy == 3);
+   assert(ty.cursor_state.cx == 8);
+   assert(_ty_cell_cp(&ty, 7, 3) == CP_STAR);
+
+   /* Set left_margin = 8 now (after the decoy was placed, so the decoy's
+    * CUP was not shifted by it). This also bounces the cursor to
+    * (8, top_margin) harmlessly. */
+   _ty_feed(&ty, "\x1b[9;80s"); /* DECSLRM: left_margin = 9-1 = 8 */
+
+   /* Real last write, well away from the decoy: relative cursor motion
+    * (CUD/CUF) is unaffected by margins, unlike absolute CUP. */
+   _ty_feed(&ty, "\x1b[10B\x1b[20C");
+   _ty_feed_uni(&ty, &star, 1);
+
+   /* DECSTBM sets top_margin = 3 and (with origin mode already on)
+    * repositions the cursor to (left_margin, top_margin) = (8, 3) --
+    * exactly one column past the decoy, same row. */
+   _ty_feed(&ty, "\x1b[4;24r");
+   assert(ty.cursor_state.cy == 3);
+   assert(ty.cursor_state.cx == 8);
+
+   _ty_feed_uni(&ty, &vs16, 1);
+
+   assert(_ty_cell_dblwidth(&ty, 7, 3) == 0);
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+/* Test: DECRC ("ESC 8") restores a saved cursor position -- coinciding,
+ * by construction, with an old emoji-table-only write that is no longer
+ * the real last write -> no widening. This is finding 3: the fields must
+ * live on Termpty, not Term_Cursor, or DECRC's wholesale cursor_state
+ * assignment would resurrect a stale guard along with the position. */
+int
+tytest_vs16_guard_invalidated_by_decrc(void)
+{
+   Termpty ty;
+   Eina_Unicode vs16 = CP_VS16;
+   Eina_Unicode star = CP_STAR;
+
+   _ty_vs16_test_init(&ty);
+
+   /* Write the decoy immediately before saving, so that (were the guard
+    * still on Term_Cursor) it would be captured as "valid" in
+    * cursor_save[]. */
+   _ty_feed(&ty, "\x1b[1;8H");
+   _ty_feed_uni(&ty, &star, 1);
+   assert(ty.cursor_state.cx == 8);
+   _ty_feed(&ty, "\x1b" "7"); /* DECSC: save cursor at (8, 0) */
+
+   /* Intervening output: a real write elsewhere. */
+   _ty_feed(&ty, "\x1b[11;31H");
+   _ty_feed_uni(&ty, &star, 1);
+
+   /* DECRC restores the saved cursor: back to (8, 0), one past the
+    * decoy. */
+   _ty_feed(&ty, "\x1b" "8");
+   assert(ty.cursor_state.cx == 8);
+   assert(ty.cursor_state.cy == 0);
+
+   _ty_feed_uni(&ty, &vs16, 1);
+
+   assert(_ty_cell_dblwidth(&ty, 7, 0) == 0);
+
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+
+#undef CP_STAR
+#undef CP_VS16
+#undef CP_GRINNING
+
+#endif /* BINARY_TYFUZZ || BINARY_TYTEST */

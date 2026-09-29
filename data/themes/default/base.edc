@@ -1,0 +1,351 @@
+group { name: "terminology/base";
+   parts {
+      part { name: "terminology.content"; type: SWALLOW;
+         description { state: "default" 0.0;
+         }
+      }
+      ////////////////////////////////////////////////////////////////////
+      // a place terminology will place an entry box for internal commands
+      part { name: "cmdclip"; type: RECT;
+         description { state: "default" 0.0;
+            rel1.to: "terminology.cmdbox";
+            rel1.offset: -100 -100;
+            rel2.to: "terminology.cmdbox";
+            rel2.offset: 99 99;
+            color: 255 255 255 0; // no cc
+            visible: 0;
+         }
+         description { state: "visible" 0.0;
+            inherit: "default" 0.0;
+            color: 255 255 255 255; // no cc
+            visible: 1;
+         }
+      }
+      part { name: "cmdback"; type: RECT;
+         scale: 1;
+         clip_to: "cmdclip";
+         description { state: "default" 0.0;
+            color: 48 48 48 255;
+            rel1.to: "terminology.cmdbox";
+            rel1.offset: -4 -4;
+            rel2.to: "terminology.cmdbox";
+            rel2.offset: 3 3;
+            offscale;
+         }
+      }
+      part { name: "terminology.cmdbox"; type: SWALLOW;
+         scale: 1;
+         clip_to: "cmdclip";
+         description { state: "default" 0.0;
+            fixed: 1 1;
+            min: 8 8;
+            rel1.relative: 0.0 1.0;
+            rel1.offset: 8 9;
+            rel2.offset: -9 9;
+            align: 0.5 0.0;
+            offscale;
+         }
+         description { state: "visible" 0.0;
+            inherit: "default" 0.0;
+            rel1.offset: 8 -9;
+            rel2.offset: -9 -9;
+            align: 0.5 1.0;
+         }
+      }
+      program { signal: "cmdbox,show"; source: "terminology";
+         action: STATE_SET "visible" 0.0;
+         transition: DECELERATE 0.2;
+         target: "cmdclip";
+      }
+      program { signal: "cmdbox,show"; source: "terminology";
+         action: STATE_SET "visible" 0.0;
+         transition: SPRING 0.2 0.2 4;
+         target: "terminology.cmdbox";
+      }
+      program { signal: "cmdbox,hide"; source: "terminology";
+         action: STATE_SET "default" 0.0;
+         transition: ACCELERATE 0.3;
+         target: "terminology.cmdbox";
+         target: "cmdclip";
+      }
+
+      ////////////////////////////////////////////////////////////////////
+      // swallow to hold invisible rect to click on to dismiss things
+      part { name: "terminology.dismiss"; type: SWALLOW;
+         description { state: "default" 0.0;
+         }
+      }
+
+      ////////////////////////////////////////////////////////////////////
+      // overlayed options and controls
+      part { name: "terminology.about"; type: SWALLOW;
+         scale: 1;
+         description { state: "default" 0.0;
+            fixed: 1 1;
+            min: 198 198;
+            max: 198 198;
+            align: 0.5 0.0;
+            visible: 0;
+            rel1.relative: 0.0 1.0;
+            rel2.relative: 1.0 1.0;
+         }
+         description { state: "visible" 0.0;
+            inherit: "default" 0.0;
+            visible: 1;
+            align: 0.5 0.5;
+            rel1.relative: 0.0 0.0;
+            rel2.relative: 1.0 1.0;
+         }
+      }
+      part { name: "twitter.base"; type: RECT;
+         mouse_events: 0;
+         scale: 1;
+         description { state: "default" 0.0;
+            visible: 0;
+            fixed: 1 1;
+            rel1 {
+               to_y: "terminology.about";
+               relative: 0.0 1.0;
+            }
+            rel2 {
+               relative: 0.5 1.0;
+            }
+         }
+      }
+      part { name: "twitter.txt"; type: TEXT;
+         mouse_events: 1;
+         scale: 1;
+         effect: GLOW;
+         description { state: "default" 0.0;
+            visible: 0;
+            align: 1.0 0.5;
+            fixed: 1 1;
+            rel1 {
+               to: "twitter.base";
+               relative: 0.5 0.5;
+            }
+            rel2 {
+               to: "twitter.base";
+               relative: 0.5 0.5;
+            }
+            color: 51 255 17 255;
+            color2: 136 255 136 40;
+            color3: 136 255 136 8;
+            text {
+               font: "Sans"; size: 10;
+               text: "Twitter: @_Terminology_";
+               align: 1.0 0.5;
+               min: 1 1;
+            }
+         }
+         description { state: "visible" 0.0;
+            inherit: "default" 0.0;
+            visible: 1;
+         }
+      }
+      program { signal: "mouse,clicked,1"; source: "twitter.txt";
+         action: SIGNAL_EMIT "about,twitter" "terminology";
+      }
+      program { signal: "mouse,clicked,3"; source: "twitter.txt";
+         action: SIGNAL_EMIT "about,twitter,ctx" "terminology";
+      }
+
+      part { name: "youtube.base"; type: RECT;
+         mouse_events: 0;
+         scale: 1;
+         description { state: "default" 0.0;
+            visible: 0;
+            fixed: 1 1;
+            rel1 {
+               to_y: "terminology.about";
+               relative: 0.5 1.0;
+            }
+            rel2 {
+               relative: 1.0 1.0;
+            }
+         }
+      }
+      part { name: "youtube.txt"; type: TEXT;
+         mouse_events: 1;
+         scale: 1;
+         effect: GLOW;
+         description { state: "default" 0.0;
+            visible: 0;
+            align: 0.0 0.5;
+            fixed: 1 1;
+            rel1 {
+               to: "youtube.base";
+               relative: 0.5 0.5;
+            }
+            rel2 {
+               to: "youtube.base";
+               relative: 0.5 0.5;
+            }
+            color: 51 255 17 255;
+            color2: 136 255 136 40;
+            color3: 136 255 136 8;
+            text {
+               font: "Sans"; size: 10;
+               text: "YouTube channel";
+               align: 0.0 0.5;
+               min: 1 1;
+            }
+         }
+         description { state: "visible" 0.0;
+            inherit: "default" 0.0;
+            visible: 1;
+         }
+      }
+      program { signal: "mouse,clicked,1"; source: "youtube.txt";
+         action: SIGNAL_EMIT "about,youtube" "terminology";
+      }
+      program { signal: "mouse,clicked,3"; source: "youtube.txt";
+         action: SIGNAL_EMIT "about,youtube,ctx" "terminology";
+      }
+
+      program { signal: "about,show"; source: "terminology";
+         action: STATE_SET "visible" 0.0;
+         transition: SPRING 1.2 2.0 6;
+         target: "terminology.about";
+         target: "twitter.txt";
+         target: "youtube.txt";
+      }
+      program { signal: "about,hide"; source: "terminology";
+         action: STATE_SET "default" 0.0;
+         transition: DECELERATE 0.6;
+         target: "terminology.about";
+         target: "twitter.txt";
+         target: "youtube.txt";
+      }
+
+
+      ////////////////////////////////////////////////////////////////////
+      // overlayed options and controls
+      part { name: "terminology.optdetails"; type: SWALLOW;
+         scale: 1;
+         description { state: "default" 0.0;
+            fixed: 1 1;
+            min: 40 40;
+            align: 0.0 0.5;
+            visible: 0;
+            rel1 {
+               relative: 1.0 0.02;
+               offset: 8 8;
+            }
+            rel2 {
+               relative: 1.0 0.98;
+               offset: 8 -9;
+            }
+            offscale;
+         }
+         description { state: "visible" 0.0;
+            inherit: "default" 0.0;
+            visible: 1;
+            align: 1.0 0.5;
+            rel1 {
+               relative: 0.1 0.02;
+               offset: 8 8;
+            }
+            rel2 {
+               to_x: "terminology.options";
+               relative: 0.0 0.98;
+               offset: -9 -9;
+            }
+         }
+      }
+      program { signal: "optdetails,show"; source: "terminology";
+         action: STATE_SET "visible" 0.0;
+         transition: DECELERATE 0.2;
+         target: "terminology.optdetails";
+      }
+      program { signal: "optdetails,hide"; source: "terminology";
+         action: STATE_SET "default" 0.0;
+         transition: DECELERATE 0.3;
+         target: "terminology.optdetails";
+         after: "opdt_hide2";
+      }
+      program { name: "opdt_hide2";
+         action: SIGNAL_EMIT "optdetails,hide,done" "terminology";
+      }
+
+      part { name: "terminology.options"; type: SWALLOW;
+         scale: 1;
+         description { state: "default" 0.0;
+            fixed: 1 1;
+            align: 0.0 0.5;
+            visible: 0;
+            rel1 {
+               relative: 1.0 0.02;
+               offset: 8 8;
+            }
+            rel2 {
+               relative: 1.0 0.98;
+               offset: 8 -9;
+            }
+            offscale;
+         }
+         description { state: "visible" 0.0;
+            inherit: "default" 0.0;
+            visible: 1;
+            align: 1.0 0.5;
+            rel1 {
+               offset: -9 8;
+            }
+            rel2 {
+               offset: -9 -9;
+            }
+         }
+      }
+      program { signal: "options,show"; source: "terminology";
+         action: STATE_SET "visible" 0.0;
+         transition: DECELERATE 0.2;
+         target: "terminology.options";
+      }
+      program { signal: "options,hide"; source: "terminology";
+         action: STATE_SET "default" 0.0;
+         transition: DECELERATE 0.3;
+         target: "terminology.options";
+      }
+
+      part { name: "terminology.controls"; type: SWALLOW;
+         scale: 1;
+         description { state: "default" 0.0;
+            fixed: 1 1;
+            min: 10 10;
+            align: 0.0 0.5;
+            visible: 0;
+            rel1 {
+               relative: 1.0 0.5;
+               offset: 8 8;
+            }
+            rel2 {
+               relative: 1.0 0.5;
+               offset: 8 -9;
+            }
+            offscale;
+         }
+         description { state: "visible" 0.0;
+            inherit: "default" 0.0;
+            visible: 1;
+            align: 1.0 0.5;
+            rel1 {
+               relative: 1.0 0.5;
+               offset: -9 8;
+            }
+            rel2 {
+               offset: -9 -9;
+            }
+         }
+      }
+      program { signal: "controls,show"; source: "terminology";
+         action: STATE_SET "visible" 0.0;
+         transition: DECELERATE 0.2;
+         target: "terminology.controls";
+      }
+      program { signal: "controls,hide"; source: "terminology";
+         action: STATE_SET "default" 0.0;
+         transition: DECELERATE 0.3;
+         target: "terminology.controls";
+      }
+   }
+}
