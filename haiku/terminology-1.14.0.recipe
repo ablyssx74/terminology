@@ -6,7 +6,7 @@ background images and more."
 HOMEPAGE="https://www.enlightenment.org/about-terminology"
 COPYRIGHT="2012-2026 Carsten Haitzler and contributors"
 LICENSE="BSD (2-clause)"
-REVISION="3"
+REVISION="4"
 SOURCE_URI="git+https://github.com/ablyssx74/terminology.git#edc9deedf885b8fee2f7c721ecc9d71856834629"
 SOURCE_DIR="terminology"
 ADDITIONAL_FILES="terminology.rdef"
@@ -67,11 +67,13 @@ INSTALL()
 {
 	meson install -C build --no-rebuild
 
-	addResourcesToBinaries $portDir/additional-files/terminology.rdef \
-		$binDir/terminology
-
-	addAppDeskbarSymlink $binDir/terminology Terminology
-
+	# the application lives in apps, the command is a link to it
 	mkdir -p $appsDir
-	ln -sf ../bin/terminology $appsDir/Terminology
+	mv $binDir/terminology $appsDir/Terminology
+	ln -s ../apps/Terminology $binDir/terminology
+
+	addResourcesToBinaries $portDir/additional-files/terminology.rdef \
+		$appsDir/Terminology
+
+	addAppDeskbarSymlink $appsDir/Terminology Terminology
 }
