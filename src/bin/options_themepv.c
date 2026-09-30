@@ -252,7 +252,7 @@ options_theme_preview_add(Evas_Object *parent,
         o = elm_layout_add(parent);
         theme_apply(o, config, "terminology/background",
                     file, cs, EINA_TRUE);
-        if (config->translucent)
+        if (config->translucent && config_translucency_supported())
           elm_layout_signal_emit(o, "translucent,on", "terminology");
         else
           elm_layout_signal_emit(o, "translucent,off", "terminology");
@@ -271,7 +271,7 @@ options_theme_preview_add(Evas_Object *parent,
         o = elm_layout_add(parent);
         theme_apply(o, config, "terminology/core",
                     file, cs, EINA_TRUE);
-        if (config->translucent)
+        if (config->translucent && config_translucency_supported())
           elm_layout_signal_emit(o, "translucent,on", "terminology");
         else
           elm_layout_signal_emit(o, "translucent,off", "terminology");

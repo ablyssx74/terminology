@@ -562,6 +562,16 @@ config_default_font_set(Config *config, Evas *evas)
 #undef FONT_BITSTREAM
 }
 
+Eina_Bool
+config_translucency_supported(void)
+{
+#ifdef __HAIKU__
+   return EINA_FALSE;
+#else
+   return EINA_TRUE;
+#endif
+}
+
 Config *
 config_new(void)
 {

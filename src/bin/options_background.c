@@ -552,11 +552,16 @@ options_background(Evas_Object *opbox, Evas_Object *term)
    evas_object_size_hint_weight_set(o, EVAS_HINT_EXPAND, 0.0);
    evas_object_size_hint_align_set(o, EVAS_HINT_FILL, 0.5);
    elm_object_text_set(o, _("Translucent"));
-   elm_check_state_set(o, config->translucent);
+   elm_check_state_set(o, config->translucent && config_translucency_supported());
    elm_box_pack_end(bx, o);
    evas_object_show(o);
    evas_object_smart_callback_add(o, "changed",
                                   _cb_op_video_trans_chg, ctx);
+   if (!config_translucency_supported())
+     {
+        elm_object_disabled_set(o, EINA_TRUE);
+        elm_object_tooltip_text_set(o, _("Not supported by this system"));
+     }
 
    OPTIONS_SEPARATOR;
    lbl = elm_label_add(bx);
@@ -578,6 +583,11 @@ options_background(Evas_Object *opbox, Evas_Object *term)
    evas_object_show(o);
    evas_object_smart_callback_add(o, "changed",
                                   _cb_op_video_opacity_chg, ctx);
+   if (!config_translucency_supported())
+     {
+        elm_object_disabled_set(o, EINA_TRUE);
+        elm_object_tooltip_text_set(o, _("Not supported by this system"));
+     }
 
    o = elm_separator_add(opbox);
    evas_object_size_hint_weight_set(o, EVAS_HINT_EXPAND, 0.0);
