@@ -6,8 +6,8 @@ background images and more."
 HOMEPAGE="https://www.enlightenment.org/about-terminology"
 COPYRIGHT="2012-2026 Carsten Haitzler and contributors"
 LICENSE="BSD (2-clause)"
-REVISION="2"
-SOURCE_URI="git+https://github.com/ablyssx74/terminology.git#e10cb50a1d2592020cb5a093a9eb8b4ebfee7f8e"
+REVISION="3"
+SOURCE_URI="git+https://github.com/ablyssx74/terminology.git#edc9deedf885b8fee2f7c721ecc9d71856834629"
 SOURCE_DIR="terminology"
 ADDITIONAL_FILES="terminology.rdef"
 
@@ -71,4 +71,7 @@ INSTALL()
 		$binDir/terminology
 
 	addAppDeskbarSymlink $binDir/terminology Terminology
+
+	mkdir -p $appsDir
+	ln -sf ../bin/terminology $appsDir/Terminology
 }
