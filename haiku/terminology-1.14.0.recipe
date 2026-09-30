@@ -1,0 +1,70 @@
+SUMMARY="A terminal emulator built on the Enlightenment libraries"
+DESCRIPTION="Terminology is a feature-rich terminal emulator written with the \
+Enlightenment Foundation Libraries (EFL). It shows images, videos and music \
+inline (tycat, typop, tyls), has tabs and splits, themes, color schemes, \
+background images and more."
+HOMEPAGE="https://www.enlightenment.org/about-terminology"
+COPYRIGHT="2012-2026 Carsten Haitzler and contributors"
+LICENSE="BSD (2-clause)"
+REVISION="1"
+SOURCE_URI="git+https://github.com/ablyssx74/terminology.git#e10cb50a1d2592020cb5a093a9eb8b4ebfee7f8e"
+SOURCE_DIR="terminology"
+
+ARCHITECTURES="all !x86_gcc2"
+SECONDARY_ARCHITECTURES=""
+
+PROVIDES="
+	terminology = $portVersion
+	app:Terminology = $portVersion
+	cmd:terminology
+	cmd:tyalpha
+	cmd:tybg
+	cmd:tycat
+	cmd:tyls
+	cmd:typop
+	cmd:tyq
+	cmd:tysend
+	"
+REQUIRES="
+	haiku
+	efl
+	lib:libintl
+	"
+
+BUILD_REQUIRES="
+	haiku_devel
+	efl_devel
+	devel:libintl
+	"
+BUILD_PREREQUIRES="
+	cmd:gcc
+	cmd:meson
+	cmd:ninja
+	cmd:pkg_config
+	cmd:python3
+	cmd:tic
+	cmd:edje_cc
+	cmd:eet
+	"
+
+BUILD()
+{
+	# the EFL tools used during the build want a home directory
+	mkdir -p /boot/home
+
+	rm -rf build
+	meson setup build \
+		--prefix=$prefix \
+		--bindir=$relativeBinDir \
+		--libdir=$relativeLibDir \
+		--datadir=$relativeDataDir \
+		--buildtype=plain
+	ninja -C build
+}
+
+INSTALL()
+{
+	meson install -C build --no-rebuild
+
+	addAppDeskbarSymlink $binDir/terminology Terminology
+}
