@@ -6,9 +6,10 @@ background images and more."
 HOMEPAGE="https://www.enlightenment.org/about-terminology"
 COPYRIGHT="2012-2026 Carsten Haitzler and contributors"
 LICENSE="BSD (2-clause)"
-REVISION="1"
+REVISION="2"
 SOURCE_URI="git+https://github.com/ablyssx74/terminology.git#e10cb50a1d2592020cb5a093a9eb8b4ebfee7f8e"
 SOURCE_DIR="terminology"
+ADDITIONAL_FILES="terminology.rdef"
 
 ARCHITECTURES="all !x86_gcc2"
 SECONDARY_ARCHITECTURES=""
@@ -65,6 +66,9 @@ BUILD()
 INSTALL()
 {
 	meson install -C build --no-rebuild
+
+	addResourcesToBinaries $portDir/additional-files/terminology.rdef \
+		$binDir/terminology
 
 	addAppDeskbarSymlink $binDir/terminology Terminology
 }
