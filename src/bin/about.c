@@ -39,7 +39,7 @@ _run_url(const About_Ctx *ctx,
 {
    char buf[PATH_MAX];
    char *quoted;
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__HAIKU__)
    const char *cmd = "open";
 #else
    const char *cmd = "xdg-open";

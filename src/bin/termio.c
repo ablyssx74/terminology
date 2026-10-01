@@ -792,9 +792,12 @@ _activate_link(Evas_Object *obj, Eina_Bool may_inline)
    if (email)
      {
         const char *p = s;
+#ifdef __HAIKU__
+        char uri[PATH_MAX];
+#endif
 
         // run mail client
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__HAIKU__)
         cmd = "open";
 #else
         cmd = "xdg-email";
@@ -804,8 +807,17 @@ _activate_link(Evas_Object *obj, Eina_Bool may_inline)
             (config->helper.email[0]))
           cmd = config->helper.email;
 
+#ifdef __HAIKU__
+        /* open wants a URI: a bare address would be taken for a file */
+        if (!casestartswith(s, "mailto:"))
+          {
+             snprintf(uri, sizeof(uri), "mailto:%s", s);
+             p = uri;
+          }
+#else
         if (casestartswith(s, "mailto:"))
           p += sizeof("mailto:") - 1;
+#endif
 
         quoted = shell_quote(p);
         if (quoted)
@@ -818,7 +830,7 @@ _activate_link(Evas_Object *obj, Eina_Bool may_inline)
    else if (path)
      {
         // locally accessible file
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__HAIKU__)
         cmd = "open";
 #else
         cmd = "xdg-open";
@@ -875,7 +887,7 @@ _activate_link(Evas_Object *obj, Eina_Bool may_inline)
    else if (url)
      {
         // remote file needs ecore-con-url
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__HAIKU__)
         cmd = "open";
 #else
         cmd = "xdg-open";

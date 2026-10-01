@@ -586,7 +586,7 @@ config_new(void)
         config->font.name = eina_stringshare_add("nexus.pcf");
         config->font.size = 10;
         config->font.bolditalic = EINA_TRUE;
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__HAIKU__)
         config->helper.email = eina_stringshare_add("open");
         config->helper.url.general = eina_stringshare_add("open");
         config->helper.url.video = eina_stringshare_add("open");
@@ -669,6 +669,33 @@ config_new(void)
      }
    return config;
 }
+
+#if defined(__APPLE__) || defined(__HAIKU__)
+/* xdg-open and xdg-email do not exist there, "open" does their job */
+static void
+_helpers_use_open(Config *config)
+{
+   const char **helpers[] = {
+      &config->helper.email,
+      &config->helper.url.general,
+      &config->helper.url.video,
+      &config->helper.url.image,
+      &config->helper.local.general,
+      &config->helper.local.video,
+      &config->helper.local.image
+   };
+   unsigned int i;
+
+   for (i = 0; i < EINA_C_ARRAY_LENGTH(helpers); i++)
+     {
+        const char *helper = *helpers[i];
+
+        if (helper && (!strcmp(helper, "xdg-open") ||
+                       !strcmp(helper, "xdg-email")))
+          eina_stringshare_replace(helpers[i], "open");
+     }
+}
+#endif
 
 Config *
 config_load(void)
@@ -844,28 +871,7 @@ config_load(void)
                   /*pass through*/
                 case 27:
 #ifdef __APPLE__
-                  /* migrate xdg-open/xdg-email to macOS "open" command */
-                  if (config->helper.email &&
-                      !strcmp(config->helper.email, "xdg-email"))
-                    eina_stringshare_replace(&config->helper.email, "open");
-                  if (config->helper.url.general &&
-                      !strcmp(config->helper.url.general, "xdg-open"))
-                    eina_stringshare_replace(&config->helper.url.general, "open");
-                  if (config->helper.url.video &&
-                      !strcmp(config->helper.url.video, "xdg-open"))
-                    eina_stringshare_replace(&config->helper.url.video, "open");
-                  if (config->helper.url.image &&
-                      !strcmp(config->helper.url.image, "xdg-open"))
-                    eina_stringshare_replace(&config->helper.url.image, "open");
-                  if (config->helper.local.general &&
-                      !strcmp(config->helper.local.general, "xdg-open"))
-                    eina_stringshare_replace(&config->helper.local.general, "open");
-                  if (config->helper.local.video &&
-                      !strcmp(config->helper.local.video, "xdg-open"))
-                    eina_stringshare_replace(&config->helper.local.video, "open");
-                  if (config->helper.local.image &&
-                      !strcmp(config->helper.local.image, "xdg-open"))
-                    eina_stringshare_replace(&config->helper.local.image, "open");
+                  _helpers_use_open(config);
 #endif
                   EINA_FALLTHROUGH;
                   /*pass through*/
@@ -898,6 +904,9 @@ config_load(void)
      }
    else
      {
+#ifdef __HAIKU__
+        _helpers_use_open(config);
+#endif
         config_compute_color_scheme(config);
         config->font_set = 1;
      }
