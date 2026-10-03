@@ -4200,6 +4200,7 @@ _smart_cb_drop(void *data,
    Evas_Object *obj = data;
    Termio *sd = evas_object_smart_data_get(obj);
    size_t len;
+   Eina_Bool wrote = EINA_FALSE;
 
    EINA_SAFETY_ON_NULL_RETURN_VAL(sd, EINA_TRUE);
    if (ev->action != ELM_XDND_ACTION_COPY)
@@ -4234,6 +4235,11 @@ _smart_cb_drop(void *data,
                          evas_object_smart_callback_call(obj, "popup,queue", buf);
                        else
                          {
+                            /* one dropped file after another needs a
+                             * separator, or the paths run together */
+                            if (wrote)
+                              termpty_write(sd->pty, " ", 1);
+                            wrote = EINA_TRUE;
                             if (sd->pty->bracketed_paste)
                               termpty_write(sd->pty, "\x1b[200~", sizeof("\x1b[200~") - 1);
 
@@ -4255,6 +4261,11 @@ _smart_cb_drop(void *data,
                          evas_object_smart_callback_call(obj, "popup,queue", buf);
                        else
                          {
+                            /* one dropped file after another needs a
+                             * separator, or the paths run together */
+                            if (wrote)
+                              termpty_write(sd->pty, " ", 1);
+                            wrote = EINA_TRUE;
                             if (sd->pty->bracketed_paste)
                               termpty_write(sd->pty, "\x1b[200~", sizeof("\x1b[200~") - 1);
 
