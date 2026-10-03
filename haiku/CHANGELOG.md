@@ -19,6 +19,17 @@ published.
   are not quoted.
 * dragging links or text out of the window is not implemented.
 
+## Revision 8 (2026-10-03)
+
+Tag `haiku-1.14.0-8`, source `bf86d98`. Needs `efl` revision 11.
+[Changes since revision 7](https://github.com/ablyssx74/terminology/compare/haiku-1.14.0-7...haiku-1.14.0-8)
+
+* Ctrl+C and other typed keys reach a program that floods the terminal (`yes`,
+  `cat` of a big file). On Haiku they used to wait for the flood to end, and
+  input that could not be written at once was thrown away.
+* showing a binary file (`cat` of an executable) no longer keeps the terminal
+  busy for minutes: the bell rings at most ten times a second.
+
 ## Revision 7 (2026-10-03)
 
 Tag `haiku-1.14.0-7`, source `1e8c71a`. Needs `efl` revision 10.
