@@ -231,10 +231,50 @@ _pty_size(Termpty *ty)
 
 static Eina_Bool _handle_write(Termpty *ty);
 
+#define READ_AHEAD_CHUNKS 16
+
+/* What the user typed only gets through right after reads made room in the
+ * buffer the pty reads from. A program flooding the terminal refills that
+ * buffer during the time spent parsing and drawing what was read, so with
+ * Haiku, whose pty does not even report itself writable then, Ctrl+C
+ * practically never got through. Read ahead, back to back, until the input
+ * is written. What was read waits in read_ahead. */
+static void
+_write_pending_input(Termpty *ty)
+{
+   char chunk[4096];
+   int i;
+
+   _handle_write(ty);
+   for (i = 0; ty->write_buffer.len && (i < READ_AHEAD_CHUNKS); i++)
+     {
+        ssize_t len = read(ty->fd, chunk, sizeof(chunk));
+
+        if ((len <= 0) || (ty_sb_add(&ty->read_ahead, chunk, len) < 0))
+          break;
+        _handle_write(ty);
+     }
+}
+
+static ssize_t
+_read_chunk(Termpty *ty, char *buf, size_t len)
+{
+   struct ty_sb *sb = &ty->read_ahead;
+
+   if (!sb->len) return read(ty->fd, buf, len);
+   if (len > sb->len) len = sb->len;
+   memcpy(buf, sb->buf + sb->gap, len);
+   ty_sb_lskip(sb, len);
+   return len;
+}
+
 static Eina_Bool
 _handle_read(Termpty *ty, Eina_Bool false_on_empty)
 {
    int len, reads;
+
+   if (ty->write_buffer.len)
+     _write_pending_input(ty);
 
    // read up to 64 * 4096 bytes
    for (reads = 0; reads < 64; reads++)
@@ -252,7 +292,7 @@ _handle_read(Termpty *ty, Eina_Bool false_on_empty)
              len--;
           }
         errno = 0;
-        len = read(ty->fd, rbuf, len);
+        len = _read_chunk(ty, rbuf, len);
         if ((len < 0 && !(errno == EAGAIN || errno == EINTR)) ||
             (len == 0 && errno != 0))
           {
@@ -274,15 +314,6 @@ _handle_read(Termpty *ty, Eina_Bool false_on_empty)
           ty->oldbuf[i] = 0;
 
         len += rbuf - buf;
-
-        /* What the user typed only gets through right after a read made room
-         * in the buffer the pty reads from: with it full, as it is when a
-         * program floods the terminal faster than it can be processed, the
-         * pty takes no input (Haiku does not even report it writable). Try
-         * now, before the time of parsing and drawing what was read goes by,
-         * or Ctrl+C never reaches the program. */
-        if (ty->write_buffer.len)
-          _handle_write(ty);
 
         /*
         printf(" I: ");
@@ -929,6 +960,7 @@ termpty_free(Termpty *ty)
    free(ty->buf);
    free(ty->tabs);
    ty_sb_free(&ty->write_buffer);
+   ty_sb_free(&ty->read_ahead);
    free(ty);
 }
 
