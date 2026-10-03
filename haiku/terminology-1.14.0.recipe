@@ -7,7 +7,7 @@ HOMEPAGE="https://www.enlightenment.org/about-terminology"
 COPYRIGHT="2012-2026 Carsten Haitzler and contributors"
 LICENSE="BSD (2-clause)"
 REVISION="8"
-SOURCE_URI="git+https://github.com/ablyssx74/terminology.git#bf86d98aedd4abae7c8fc3e0d02ec7f427e94627"
+SOURCE_URI="git+https://github.com/ablyssx74/terminology.git#61887c94b3fc0bba6cb9161977a5461ec7743e8d"
 SOURCE_DIR="terminology"
 ADDITIONAL_FILES="terminology.rdef"
 
