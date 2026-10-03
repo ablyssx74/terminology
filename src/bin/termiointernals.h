@@ -96,6 +96,7 @@ struct tag_Termio
    Eina_List *cur_chids;
    Ecore_Job *sel_reset_job;
    double set_sel_at;
+   double last_bell_at;
    Elm_Sel_Type sel_type;
    unsigned char jump_on_change : 1;
    unsigned char jump_on_keypress : 1;

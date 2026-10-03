@@ -3767,12 +3767,20 @@ _smart_pty_exited(void *data)
    term_close(sd->win, sd->self, EINA_TRUE);
 }
 
+/* Ringing is far from free (sound, animations, signals piling up in
+ * edje): displaying a binary file full of BEL characters otherwise
+ * keeps the terminal busy for minutes. */
+#define BELL_MIN_INTERVAL 0.1
+
 static void
 _smart_pty_bell(void *data)
 {
    Termio *sd = evas_object_smart_data_get(data);
+   double now = ecore_loop_time_get();
 
    EINA_SAFETY_ON_NULL_RETURN(sd);
+   if ((now - sd->last_bell_at) < BELL_MIN_INTERVAL) return;
+   sd->last_bell_at = now;
    evas_object_smart_callback_call(data, "bell", NULL);
    edje_object_signal_emit(sd->cursor.obj, "bell", "terminology");
    if (sd->config->bell_rings)
