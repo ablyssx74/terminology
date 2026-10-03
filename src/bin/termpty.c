@@ -332,11 +332,16 @@ _handle_write(Termpty *ty)
      return ECORE_CALLBACK_RENEW;
 
    len = write(ty->fd, sb->buf, sb->len);
-   if (len < 0 && (errno != EINTR && errno != EAGAIN))
+   if (len < 0)
      {
-        ERR(_("Could not write to file descriptor %d: %s"),
-            ty->fd, strerror(errno));
-        return ECORE_CALLBACK_CANCEL;
+        if ((errno != EINTR) && (errno != EAGAIN))
+          {
+             ERR(_("Could not write to file descriptor %d: %s"),
+                 ty->fd, strerror(errno));
+             return ECORE_CALLBACK_CANCEL;
+          }
+        /* nothing was written, what is left is tried again later */
+        return ECORE_CALLBACK_RENEW;
      }
    ty_sb_lskip(sb, len);
 
@@ -2937,5 +2942,49 @@ tytest_vs16_guard_invalidated_by_decrc(void)
 #undef CP_STAR
 #undef CP_VS16
 #undef CP_GRINNING
+
+
+#if defined(BINARY_TYTEST)
+/* What was typed must survive a write that would block: the pty of Haiku,
+ * for one, takes input only while the terminal keeps up with the output. */
+int
+tytest_write_eagain_keeps_input(void)
+{
+   Termpty ty;
+   int fds[2];
+   char junk[4096], buf[16];
+   ssize_t n;
+
+   _ty_test_init(&ty, 10, 5);
+   assert(pipe(fds) == 0);
+   fcntl(fds[0], F_SETFL, fcntl(fds[0], F_GETFL) | O_NONBLOCK);
+   fcntl(fds[1], F_SETFL, fcntl(fds[1], F_GETFL) | O_NONBLOCK);
+   ty.fd = fds[1];
+
+   /* fill the pipe: a write would block */
+   memset(junk, 'x', sizeof(junk));
+   while (write(fds[1], junk, sizeof(junk)) > 0) { }
+   assert(errno == EAGAIN);
+
+   termpty_write(&ty, "abc", 3);
+   assert(_handle_write(&ty) == ECORE_CALLBACK_RENEW);
+   assert(ty.write_buffer.len == 3);
+
+   /* once the other side reads, the input goes out */
+   while (read(fds[0], junk, sizeof(junk)) > 0) { }
+   assert(_handle_write(&ty) == ECORE_CALLBACK_RENEW);
+   assert(ty.write_buffer.len == 0);
+   n = read(fds[0], buf, sizeof(buf));
+   assert(n == 3);
+   assert(!memcmp(buf, "abc", 3));
+
+   close(fds[0]);
+   close(fds[1]);
+   ty.fd = -1;
+   ty_sb_free(&ty.write_buffer);
+   _ty_test_shutdown(&ty);
+   return 0;
+}
+#endif
 
 #endif /* BINARY_TYFUZZ || BINARY_TYTEST */

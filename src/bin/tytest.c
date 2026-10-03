@@ -72,6 +72,7 @@ static struct {
        { "vs16_guard_invalidated_by_decom", tytest_vs16_guard_invalidated_by_decom},
        { "vs16_guard_invalidated_by_decstbm", tytest_vs16_guard_invalidated_by_decstbm},
        { "vs16_guard_invalidated_by_decrc", tytest_vs16_guard_invalidated_by_decrc},
+       { "write_eagain_keeps_input", tytest_write_eagain_keeps_input},
        { NULL, NULL},
 };
 
