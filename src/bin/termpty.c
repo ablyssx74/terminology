@@ -229,6 +229,8 @@ _pty_size(Termpty *ty)
        ERR(_("Size set ioctl failed: %s"), strerror(errno));
 }
 
+static Eina_Bool _handle_write(Termpty *ty);
+
 static Eina_Bool
 _handle_read(Termpty *ty, Eina_Bool false_on_empty)
 {
@@ -272,6 +274,15 @@ _handle_read(Termpty *ty, Eina_Bool false_on_empty)
           ty->oldbuf[i] = 0;
 
         len += rbuf - buf;
+
+        /* What the user typed only gets through right after a read made room
+         * in the buffer the pty reads from: with it full, as it is when a
+         * program floods the terminal faster than it can be processed, the
+         * pty takes no input (Haiku does not even report it writable). Try
+         * now, before the time of parsing and drawing what was read goes by,
+         * or Ctrl+C never reaches the program. */
+        if (ty->write_buffer.len)
+          _handle_write(ty);
 
         /*
         printf(" I: ");
