@@ -231,27 +231,38 @@ _pty_size(Termpty *ty)
 
 static Eina_Bool _handle_write(Termpty *ty);
 
-#define READ_AHEAD_CHUNKS 16
+#define READ_AHEAD_CHUNKS 24
+#define WRITE_PENDING_TRIES 200
 
-/* What the user typed only gets through right after reads made room in the
- * buffer the pty reads from. A program flooding the terminal refills that
- * buffer during the time spent parsing and drawing what was read, so with
- * Haiku, whose pty does not even report itself writable then, Ctrl+C
- * practically never got through. Read ahead, back to back, until the input
- * is written. What was read waits in read_ahead. */
+/* What the user typed only gets through when the pty has room, and a
+ * program flooding the terminal takes that room back within microseconds
+ * of a read, or while the output is parsed and drawn. With Haiku, whose
+ * pty does not even report itself writable then, Ctrl+C practically never
+ * got through. Try again and again, reading ahead at the same time to make
+ * room, until the input is written. What was read waits in read_ahead,
+ * unparsed. */
 static void
 _write_pending_input(Termpty *ty)
 {
    char chunk[4096];
-   int i;
+   int tries, chunks = 0;
 
    _handle_write(ty);
-   for (i = 0; ty->write_buffer.len && (i < READ_AHEAD_CHUNKS); i++)
+   for (tries = 0; ty->write_buffer.len && (tries < WRITE_PENDING_TRIES);
+        tries++)
      {
-        ssize_t len = read(ty->fd, chunk, sizeof(chunk));
+        if (chunks < READ_AHEAD_CHUNKS)
+          {
+             ssize_t len = read(ty->fd, chunk, sizeof(chunk));
 
-        if ((len <= 0) || (ty_sb_add(&ty->read_ahead, chunk, len) < 0))
-          break;
+             if (len > 0)
+               {
+                  if (ty_sb_add(&ty->read_ahead, chunk, len) < 0) break;
+                  chunks++;
+               }
+             else if ((len == 0) || ((errno != EAGAIN) && (errno != EINTR)))
+               break;
+          }
         _handle_write(ty);
      }
 }
