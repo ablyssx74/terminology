@@ -19,6 +19,9 @@
 #include "miniview.h"
 #include "gravatar.h"
 #include "keyin.h"
+#ifdef __HAIKU__
+#include "haiku_shutdown.h"
+#endif
 
 int terminology_starting_up;
 int _log_domain = -1;
@@ -1114,6 +1117,10 @@ elm_main(int argc, char **argv)
      {
         _start(&instance, need_scale_wizard);
      }
+#ifdef __HAIKU__
+   /* a reboot has to be answered with yes, or it is aborted */
+   haiku_shutdown_filter_install();
+#endif
    elm_run();
 
    ecore_con_url_shutdown();

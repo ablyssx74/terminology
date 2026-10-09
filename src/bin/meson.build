@@ -117,12 +117,21 @@ tybench_sources = ['termptyesc.c', 'termptyesc.h',
                   'tytest_common.c', 'tytest_common.h',
                   'tybench.c']
 
+terminology_haiku_sources = []
+terminology_haiku_dependencies = []
+if host_machine.system() == 'haiku'
+  # answers the quit request of a shutdown or a reboot (see haiku_shutdown.cpp)
+  terminology_haiku_sources = ['haiku_shutdown.cpp', 'haiku_shutdown.h']
+  terminology_haiku_dependencies = [cc.find_library('be')]
+endif
+
 executable('terminology',
            terminology_sources,
+           terminology_haiku_sources,
            edj_targets,
            install: true,
            include_directories: config_dir,
-           dependencies: terminology_dependencies)
+           dependencies: [terminology_dependencies, terminology_haiku_dependencies])
 executable('tybg',
            tybg_sources,
            install: true,
