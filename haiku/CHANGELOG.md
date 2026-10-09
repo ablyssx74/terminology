@@ -19,6 +19,17 @@ published.
   are not quoted.
 * dragging links or text out of the window is not implemented.
 
+## Revision 9 (2026-10-09)
+
+Tag `haiku-1.14.0-9`, source `07d6fec`. Needs `efl` revision 11.
+[Changes since revision 8](https://github.com/ablyssx74/terminology/compare/haiku-1.14.0-8...haiku-1.14.0-9)
+
+* an open Terminology no longer stops a shutdown or a reboot. Haiku asks every
+  application to quit and waits for a "yes"; EFL's windows answered "no", so
+  the shutdown ended with "Application Terminology has aborted the shutdown
+  process". Terminology now answers yes to that request and leaves its main loop,
+  which ends it and its terminals the way closing the last window does.
+
 ## Revision 8 (2026-10-03)
 
 Tag `haiku-1.14.0-8`, source `61887c9`. Needs `efl` revision 11.
