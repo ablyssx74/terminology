@@ -792,9 +792,12 @@ _activate_link(Evas_Object *obj, Eina_Bool may_inline)
    if (email)
      {
         const char *p = s;
+#ifdef __HAIKU__
+        char uri[PATH_MAX];
+#endif
 
         // run mail client
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__HAIKU__)
         cmd = "open";
 #else
         cmd = "xdg-email";
@@ -804,8 +807,17 @@ _activate_link(Evas_Object *obj, Eina_Bool may_inline)
             (config->helper.email[0]))
           cmd = config->helper.email;
 
+#ifdef __HAIKU__
+        /* open wants a URI: a bare address would be taken for a file */
+        if (!casestartswith(s, "mailto:"))
+          {
+             snprintf(uri, sizeof(uri), "mailto:%s", s);
+             p = uri;
+          }
+#else
         if (casestartswith(s, "mailto:"))
           p += sizeof("mailto:") - 1;
+#endif
 
         quoted = shell_quote(p);
         if (quoted)
@@ -818,7 +830,7 @@ _activate_link(Evas_Object *obj, Eina_Bool may_inline)
    else if (path)
      {
         // locally accessible file
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__HAIKU__)
         cmd = "open";
 #else
         cmd = "xdg-open";
@@ -875,7 +887,7 @@ _activate_link(Evas_Object *obj, Eina_Bool may_inline)
    else if (url)
      {
         // remote file needs ecore-con-url
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__HAIKU__)
         cmd = "open";
 #else
         cmd = "xdg-open";
@@ -3755,12 +3767,20 @@ _smart_pty_exited(void *data)
    term_close(sd->win, sd->self, EINA_TRUE);
 }
 
+/* Ringing is far from free (sound, animations, signals piling up in
+ * edje): displaying a binary file full of BEL characters otherwise
+ * keeps the terminal busy for minutes. */
+#define BELL_MIN_INTERVAL 0.1
+
 static void
 _smart_pty_bell(void *data)
 {
    Termio *sd = evas_object_smart_data_get(data);
+   double now = ecore_loop_time_get();
 
    EINA_SAFETY_ON_NULL_RETURN(sd);
+   if ((now - sd->last_bell_at) < BELL_MIN_INTERVAL) return;
+   sd->last_bell_at = now;
    evas_object_smart_callback_call(data, "bell", NULL);
    edje_object_signal_emit(sd->cursor.obj, "bell", "terminology");
    if (sd->config->bell_rings)
@@ -4188,6 +4208,7 @@ _smart_cb_drop(void *data,
    Evas_Object *obj = data;
    Termio *sd = evas_object_smart_data_get(obj);
    size_t len;
+   Eina_Bool wrote = EINA_FALSE;
 
    EINA_SAFETY_ON_NULL_RETURN_VAL(sd, EINA_TRUE);
    if (ev->action != ELM_XDND_ACTION_COPY)
@@ -4222,6 +4243,11 @@ _smart_cb_drop(void *data,
                          evas_object_smart_callback_call(obj, "popup,queue", buf);
                        else
                          {
+                            /* one dropped file after another needs a
+                             * separator, or the paths run together */
+                            if (wrote)
+                              termpty_write(sd->pty, " ", 1);
+                            wrote = EINA_TRUE;
                             if (sd->pty->bracketed_paste)
                               termpty_write(sd->pty, "\x1b[200~", sizeof("\x1b[200~") - 1);
 
@@ -4243,6 +4269,11 @@ _smart_cb_drop(void *data,
                          evas_object_smart_callback_call(obj, "popup,queue", buf);
                        else
                          {
+                            /* one dropped file after another needs a
+                             * separator, or the paths run together */
+                            if (wrote)
+                              termpty_write(sd->pty, " ", 1);
+                            wrote = EINA_TRUE;
                             if (sd->pty->bracketed_paste)
                               termpty_write(sd->pty, "\x1b[200~", sizeof("\x1b[200~") - 1);
 

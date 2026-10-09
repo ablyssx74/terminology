@@ -196,6 +196,7 @@ struct tag_Termpty
    int w, h;
    int fd, slavefd;
    struct ty_sb write_buffer;
+   struct ty_sb read_ahead;
    struct {
       int curid;
       Eina_Hash *blocks;

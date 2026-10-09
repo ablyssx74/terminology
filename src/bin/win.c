@@ -1059,8 +1059,10 @@ _term_trans(Term *term)
    Edje_Message_Int msg;
    Evas_Object *edje = elm_layout_edje_get(term->core);
    Win *wn = term->wn;
+   Eina_Bool translucent = term->config->translucent &&
+     config_translucency_supported();
 
-   if (term->config->translucent)
+   if (translucent)
      {
         msg.val = term->config->opacity;
         edje_object_message_send(term->bg_edj, EDJE_MESSAGE_INT, 1, &msg);
@@ -1075,9 +1077,9 @@ _term_trans(Term *term)
         edje_object_message_send(edje, EDJE_MESSAGE_INT, 1, &msg);
      }
 
-   if (term->config->translucent != wn->translucent)
+   if (translucent != wn->translucent)
      {
-        if (term->config->translucent)
+        if (translucent)
           {
              elm_win_alpha_set(wn->win, EINA_TRUE);
              wn->translucent = EINA_TRUE;
@@ -4467,7 +4469,7 @@ _cb_tab_selector_show(Tabs *tabs, Tab_Item *to_item)
    evas_object_geometry_set(tabs->selector_bg, x, y, w, h);
    evas_object_hide(o);
 
-   if (wn->config->translucent)
+   if (wn->config->translucent && config_translucency_supported())
      msg.val = wn->config->opacity;
    else
      msg.val = 100;

@@ -30,6 +30,10 @@ config_data.set_quoted('LOCALEDIR', join_paths(prefix, get_option('localedir')))
 
 host_os = host_machine.system()
 
+if host_os == 'haiku'
+   add_languages('cpp')
+endif
+
 if host_os == 'linux'
    config_data.set('_GNU_SOURCE', 1)
    config_data.set('__EXTENSIONS__', 1)

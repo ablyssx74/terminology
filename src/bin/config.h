@@ -135,6 +135,10 @@ void config_del(Config *config);
 void config_default_font_set(Config *config, Evas *evas);
 void config_reset_keys(Config *config);
 
+/* whether the windows can be translucent: there are no windows with an alpha
+ * channel on Haiku */
+Eina_Bool config_translucency_supported(void);
+
 const char *config_theme_path_get(const Config *config);
 const char *config_theme_path_default_get(const Config *config);
 

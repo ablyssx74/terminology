@@ -46,5 +46,6 @@ int tytest_vs16_guard_invalidated_by_ht(void);
 int tytest_vs16_guard_invalidated_by_decom(void);
 int tytest_vs16_guard_invalidated_by_decstbm(void);
 int tytest_vs16_guard_invalidated_by_decrc(void);
+int tytest_write_eagain_keeps_input(void);
 
 #endif

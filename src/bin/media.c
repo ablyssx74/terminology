@@ -1528,7 +1528,7 @@ media_unknown_handle(const char *handler, const char *src)
    const char *cmd;
    char buf[PATH_MAX];
    char *quoted;
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__HAIKU__)
    cmd = "open";
 #else
    cmd = "xdg-open";

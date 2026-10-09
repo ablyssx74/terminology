@@ -19,6 +19,9 @@
 #include "miniview.h"
 #include "gravatar.h"
 #include "keyin.h"
+#ifdef __HAIKU__
+#include "haiku_shutdown.h"
+#endif
 
 int terminology_starting_up;
 int _log_domain = -1;
@@ -544,6 +547,12 @@ static Ecore_Getopt options = {
                               gettext_noop("Highlight links")),
       ECORE_GETOPT_STORE_BOOL('\0', "no-wizard",
                               gettext_noop("Do not display wizard on start up")),
+#ifdef __HAIKU__
+      ECORE_GETOPT_STORE_TRUE('\0', "gl",
+                              gettext_noop("Use OpenGL, if the system allows it")),
+      ECORE_GETOPT_STORE_TRUE('\0', "nebula",
+                              gettext_noop("Use OpenGL even with the Nebula NVIDIA driver, which may freeze windows")),
+#endif
 
       ECORE_GETOPT_VERSION   ('V', "version"),
       ECORE_GETOPT_COPYRIGHT ('\0', "copyright"),
@@ -836,6 +845,10 @@ elm_main(int argc, char **argv)
    Eina_Bool quit_option = EINA_FALSE;
    Eina_Bool single = EINA_FALSE;
    Eina_Bool no_wizard = EINA_FALSE;
+#ifdef __HAIKU__
+   Eina_Bool gl = EINA_FALSE;
+   Eina_Bool nebula = EINA_FALSE;
+#endif
    Eina_Bool cmd_options = EINA_FALSE;
    double scale = -1.0; /* unset */
    Ipc_Instance instance = {
@@ -878,6 +891,10 @@ elm_main(int argc, char **argv)
      ECORE_GETOPT_VALUE_DOUBLE(scale),                  /* --scale */
      ECORE_GETOPT_VALUE_BOOL(instance.active_links),    /* --active-links */
      ECORE_GETOPT_VALUE_BOOL(no_wizard),                /* --no-wizard */
+#ifdef __HAIKU__
+     ECORE_GETOPT_VALUE_BOOL(gl),                       /* --gl */
+     ECORE_GETOPT_VALUE_BOOL(nebula),                   /* --nebula */
+#endif
 
      ECORE_GETOPT_VALUE_BOOL(quit_option),              /* -v, --version */
      ECORE_GETOPT_VALUE_BOOL(quit_option),              /* --copyright */
@@ -963,6 +980,16 @@ elm_main(int argc, char **argv)
 
    if (quit_option)
      goto end;
+
+#ifdef __HAIKU__
+   /* Elementary and elementary_config, which this starts, take both from
+    * the environment. ELM_NEBULA is the opt-in with the Nebula driver:
+    * without it only --gl is not enough there, and Elementary says so. */
+   if (nebula)
+     setenv("ELM_NEBULA", "1", 1);
+   if (gl || nebula)
+     setenv("ELM_ACCEL", "gl", 1);
+#endif
 
    if (cmd_options)
      {
@@ -1090,6 +1117,10 @@ elm_main(int argc, char **argv)
      {
         _start(&instance, need_scale_wizard);
      }
+#ifdef __HAIKU__
+   /* a reboot has to be answered with yes, or it is aborted */
+   haiku_shutdown_filter_install();
+#endif
    elm_run();
 
    ecore_con_url_shutdown();
